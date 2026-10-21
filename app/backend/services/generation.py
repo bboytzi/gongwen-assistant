@@ -161,25 +161,46 @@ class GenerationPipeline:
             return {"doc_category": doc_config.get("doc_category", "")}
 
     def rag_search(self, query: str, kb_ids: list[str]) -> dict:
-        """Step 2: RAG retrieval from knowledge base."""
-        # Get embedding for the query
-        embed_resp = self.llm.embed(query)
-        # Hybrid search
-        results = hybrid_search(
-            self.db,
-            query=query,
-            query_embedding=embed_resp.vector,
-            user_id=self.user_id,
-            kb_ids=kb_ids,
-            limit=10,
-        )
+        """Step 2: RAG retrieval from knowledge base.
+
+        优先走混合检索（语义 + 关键词）；若 embedding 不可用
+        （例如只配了 DeepSeek，它没有 embedding 接口），
+        自动降级为纯关键词检索，保证生成流程不中断。
+        """
+        query_embedding = None
+        if self.llm.embedding_model:
+            try:
+                query_embedding = self.llm.embed(query).vector
+            except Exception as e:
+                print(f"[rag_search] Embedding 调用失败，降级为关键词检索: {e}")
+
+        if query_embedding:
+            results = hybrid_search(
+                self.db,
+                query=query,
+                query_embedding=query_embedding,
+                user_id=self.user_id,
+                kb_ids=kb_ids,
+                limit=10,
+            )
+            all_results = results["results"]
+        else:
+            from services.search import keyword_search
+            all_results = keyword_search(
+                self.db,
+                query=query,
+                user_id=self.user_id,
+                kb_ids=kb_ids,
+                limit=10,
+            )
+
         # Separate regulations from cases
-        regulations = [r for r in results["results"] if r.get("doc_type") == "regulation"]
-        cases = [r for r in results["results"] if r.get("doc_type") == "case"]
+        regulations = [r for r in all_results if r.get("doc_type") == "regulation"]
+        cases = [r for r in all_results if r.get("doc_type") == "case"]
         return {
             "regulations": regulations,
             "cases": cases,
-            "all": results["results"],
+            "all": all_results,
         }
 
     def generate_outline(self, doc_config: dict, rag_results: dict) -> str:
