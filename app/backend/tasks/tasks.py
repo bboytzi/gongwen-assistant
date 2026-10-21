@@ -49,53 +49,69 @@ def process_kb_document(doc_id: str):
             db.commit()
             return {"error": "No text content"}
 
-        # Get user's active LLM config for embeddings
+        # 先落库纯文本分块，保证即使 embedding 不可用，关键词检索仍然可用
+        doc.status = "indexing"
+        db.commit()
+
+        # 尝试获取 embedding 能力（可能不存在：如 DeepSeek 无 embedding 接口）
+        llm = None
+        embed_ready = False
         llm_config = db.query(LLMConfig).filter(
             LLMConfig.user_id == doc.user_id,
             LLMConfig.is_active == True
         ).first()
-        if not llm_config:
-            doc.status = "failed"
-            doc.error_message = "No active LLM config for embeddings"
-            db.commit()
-            return {"error": "No active LLM config"}
 
-        # Initialize LLM client
-        api_key = decrypt_api_key(llm_config.api_key_encrypted)
-        llm = LLMClient(
-            provider=llm_config.provider,
-            api_key=api_key,
-            chat_model=llm_config.chat_model,
-            api_url=llm_config.api_url,
-            embedding_model=llm_config.embedding_model,
-            embedding_url=llm_config.embedding_url,
-        )
-
-        doc.status = "indexing"
-        db.commit()
-
-        # Embed and store chunks
-        for i, chunk_text_content in enumerate(chunks):
+        if llm_config and llm_config.embedding_model:
             try:
-                embed_resp = llm.embed(chunk_text_content)
-                chunk = DocumentChunk(
-                    doc_id=doc.id,
-                    chunk_index=i,
-                    content=chunk_text_content,
-                    embedding=str(embed_resp.vector),
+                api_key = decrypt_api_key(llm_config.api_key_encrypted)
+                llm = LLMClient(
+                    provider=llm_config.provider,
+                    api_key=api_key,
+                    chat_model=llm_config.chat_model,
+                    api_url=llm_config.api_url,
+                    embedding_model=llm_config.embedding_model,
+                    embedding_url=llm_config.embedding_url,
                 )
-                db.add(chunk)
-                db.commit()
+                embed_ready = True
             except Exception as e:
-                print(f"Failed to embed chunk {i}: {e}")
-                continue
+                print(f"[kb] LLM 客户端初始化失败: {e}")
 
-        # Update document status
+        # 写入分块；有 embedding 能力时顺带写入向量
+        embedded_count = 0
+        for i, chunk_text_content in enumerate(chunks):
+            embedding_value = None
+            if embed_ready:
+                try:
+                    embedding_value = str(llm.embed(chunk_text_content).vector)
+                    embedded_count += 1
+                except Exception as e:
+                    print(f"[kb] 分块 {i} 向量化失败: {e}")
+
+            db.add(DocumentChunk(
+                doc_id=doc.id,
+                chunk_index=i,
+                content=chunk_text_content,
+                embedding=embedding_value,
+            ))
+            db.commit()
+
+        # 更新状态：文本已入库即视为完成，向量化情况记录在 meta
         doc.status = "done"
-        doc.meta = {"chunk_count": len(chunks), "pages": len(pages)}
+        doc.meta = {
+            "chunk_count": len(chunks),
+            "embedded_count": embedded_count,
+            "pages": len(pages),
+            "vector_indexed": embedded_count > 0,
+            "note": None if embedded_count > 0 else "未配置 Embedding 模型，仅支持关键词检索",
+        }
+        doc.error_message = None
         db.commit()
 
-        return {"status": "done", "chunks": len(chunks)}
+        return {
+            "status": "done",
+            "chunks": len(chunks),
+            "embedded": embedded_count,
+        }
 
     except Exception as e:
         db.rollback()
