@@ -13,7 +13,10 @@ def semantic_search(
     kb_ids: list[str],
     limit: int = 10,
 ) -> list[dict]:
-    """Vector similarity search using pgvector."""
+    """Vector similarity search using pgvector.
+
+    embedding 列未建立向量索引或类型不符时返回空列表，由调用方降级到关键词检索。
+    """
     embedding_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
     params = {
         "embedding": embedding_str,
@@ -30,10 +33,17 @@ def semantic_search(
         JOIN kb_documents kb_docs ON dc.doc_id = kb_docs.id
         WHERE kb_docs.user_id = CAST(:user_id AS uuid)
               AND kb_docs.kb_id = ANY(CAST(:kb_ids AS uuid[]))
+              AND dc.embedding IS NOT NULL
         ORDER BY dc.embedding <=> CAST(:embedding AS vector)
         LIMIT :limit
     """)
-    rows = db.execute(sql, params).fetchall()
+    try:
+        rows = db.execute(sql, params).fetchall()
+    except Exception as e:
+        db.rollback()
+        print(f"[semantic_search] 向量检索不可用，跳过: {e}")
+        return []
+
     return [
         {
             "doc_id": str(row.doc_id),
@@ -48,6 +58,109 @@ def semantic_search(
     ]
 
 
+_zhparser_available = None
+
+
+def has_zhparser(db: Session) -> bool:
+    """检测数据库是否安装了 zhparser 与 chinese_zh 配置（结果缓存）。"""
+    global _zhparser_available
+    if _zhparser_available is not None:
+        return _zhparser_available
+    try:
+        row = db.execute(
+            text("SELECT 1 FROM pg_ts_config WHERE cfgname = 'chinese_zh'")
+        ).first()
+        _zhparser_available = bool(row)
+    except Exception:
+        _zhparser_available = False
+    return _zhparser_available
+
+
+def _split_keywords(query: str) -> list[str]:
+    """把中文查询切成关键词，用于 pg_trgm 降级检索。"""
+    import re
+    stopwords = {
+        "的", "了", "和", "与", "及", "关于", "申请", "请示", "材料",
+        "请", "我", "们", "怎么", "如何", "什么", "哪些", "是否",
+    }
+    parts = re.split(r"[，。、；：？！,.\s/]+", query)
+    kws = []
+    for p in parts:
+        p = p.strip()
+        if len(p) >= 2 and p not in stopwords:
+            kws.append(p)
+    return kws or [query]
+
+
+def _keyword_search_trgm(
+    db: Session,
+    query: str,
+    user_id: str,
+    kb_ids: list[str],
+    limit: int,
+) -> list[dict]:
+    """pg_trgm 模糊匹配降级方案（zhparser 不可用时使用）。
+
+    中文没有空格分词，用 trigram 相似度 + ILIKE 关键词匹配兜底。
+    """
+    keywords = _split_keywords(query)
+    params = {
+        "query": query,
+        "user_id": user_id,
+        "kb_ids": kb_ids,
+        "limit": limit,
+    }
+
+    # 动态构造关键词 ILIKE 条件
+    like_clauses = []
+    for i, kw in enumerate(keywords[:6]):
+        key = f"kw{i}"
+        params[key] = f"%{kw}%"
+        like_clauses.append(f"kb_docs.content ILIKE :{key}")
+        like_clauses.append(f"kb_docs.title ILIKE :{key}")
+
+    like_sql = " OR ".join(like_clauses) if like_clauses else "FALSE"
+
+    sql = text(f"""
+        SELECT dc.id, dc.doc_id, dc.content, dc.chunk_index,
+               kb_docs.title, kb_docs.doc_type, kb_docs.source,
+               GREATEST(
+                   similarity(kb_docs.title, :query),
+                   similarity(kb_docs.content, :query)
+               ) AS sim,
+               (CASE WHEN kb_docs.title ILIKE '%' || :query || '%' THEN 0.5 ELSE 0 END) AS exact_bonus
+        FROM document_chunks dc
+        JOIN kb_documents kb_docs ON dc.doc_id = kb_docs.id
+        WHERE kb_docs.user_id = CAST(:user_id AS uuid)
+              AND kb_docs.kb_id = ANY(CAST(:kb_ids AS uuid[]))
+              AND ({like_sql} OR kb_docs.content % :query)
+        ORDER BY (GREATEST(
+                   similarity(kb_docs.title, :query),
+                   similarity(kb_docs.content, :query)
+                 ) + (CASE WHEN kb_docs.title ILIKE '%' || :query || '%' THEN 0.5 ELSE 0 END)) DESC
+        LIMIT :limit
+    """)
+
+    try:
+        rows = db.execute(sql, params).fetchall()
+    except Exception:
+        db.rollback()
+        return []
+
+    return [
+        {
+            "doc_id": str(row.doc_id),
+            "title": row.title,
+            "content": row.content,
+            "doc_type": row.doc_type,
+            "source": row.source,
+            "score": float(row.sim) if row.sim else 0.0,
+            "chunk_index": row.chunk_index,
+        }
+        for row in rows
+    ]
+
+
 def keyword_search(
     db: Session,
     query: str,
@@ -55,7 +168,14 @@ def keyword_search(
     kb_ids: list[str],
     limit: int = 10,
 ) -> list[dict]:
-    """Full-text keyword search using PostgreSQL tsvector with zhparser."""
+    """关键词检索。
+
+    优先使用 zhparser 中文分词全文检索；若数据库未安装 zhparser，
+    自动降级到 pg_trgm 模糊匹配，避免接口直接报错。
+    """
+    if not has_zhparser(db):
+        return _keyword_search_trgm(db, query, user_id, kb_ids, limit)
+
     params = {
         "query": query,
         "user_id": user_id,
@@ -74,7 +194,12 @@ def keyword_search(
         ORDER BY score DESC
         LIMIT :limit
     """)
-    rows = db.execute(sql, params).fetchall()
+    try:
+        rows = db.execute(sql, params).fetchall()
+    except Exception:
+        db.rollback()
+        return _keyword_search_trgm(db, query, user_id, kb_ids, limit)
+
     return [
         {
             "doc_id": str(row.doc_id),
