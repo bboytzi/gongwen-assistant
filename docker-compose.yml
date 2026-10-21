@@ -1,0 +1,98 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: claw-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: claw
+      POSTGRES_PASSWORD: claw_dev_2026
+      POSTGRES_DB: claw
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+      - ./app/backend/sql:/docker-entrypoint-initdb.d
+    command: >
+      postgres
+        -c shared_buffers=1GB
+        -c max_connections=50
+        -c work_mem=16MB
+        -c maintenance_work_mem=256MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U claw"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: claw-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  backend:
+    build:
+      context: ./app/backend
+      dockerfile: Dockerfile
+    container_name: claw-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app/backend:/app
+      - ./data/uploads:/data/uploads
+      - ./data/logs:/data/logs
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://claw:claw_dev_2026@postgres:5432/claw
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=claw-secret-key-change-in-production
+      - UPLOAD_DIR=/data/uploads
+      - LOG_DIR=/data/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+
+  worker:
+    build:
+      context: ./app/backend
+      dockerfile: Dockerfile
+    container_name: claw-worker
+    restart: always
+    volumes:
+      - ./app/backend:/app
+      - ./data/uploads:/data/uploads
+      - ./data/logs:/data/logs
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://claw:claw_dev_2026@postgres:5432/claw
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=claw-secret-key-change-in-production
+      - UPLOAD_DIR=/data/uploads
+      - LOG_DIR=/data/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: celery -A tasks.celery_app worker --loglevel=info --concurrency=2 --max-memory-per-child=512000
+
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+    container_name: claw-frontend
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./app/nginx/claw.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
