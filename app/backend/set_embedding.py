@@ -24,7 +24,7 @@ import argparse
 import sys
 
 from core.database import SessionLocal
-from core.encryption import decrypt_api_key
+from core.encryption import decrypt_api_key, encrypt_api_key
 from models.models import LLMConfig
 from services.llm_client import LLMClient
 
@@ -38,6 +38,9 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--model", default=DEFAULT_MODEL, help="向量模型 ID")
     p.add_argument("--url", default=DEFAULT_URL, help="向量接口 base 或完整地址")
+    p.add_argument("--key", default=None,
+                   help="向量接口专用 API Key。TokenHub 的 Token Plan Key 只能调 "
+                        "/plan/v3，调用 /v1 按量计费接口需另一个 Key；留空则复用主 Key")
     p.add_argument("--test-only", action="store_true", help="只测试，不写数据库")
     args = p.parse_args()
 
@@ -51,12 +54,24 @@ def main():
         api_key = decrypt_api_key(cfg.api_key_encrypted)
         cfg_id, cfg_name = cfg.id, cfg.name
 
+        # 向量 Key 优先级：命令行 > 数据库已存 > 复用主 Key
+        if args.key:
+            emb_key = args.key
+            key_source = "命令行指定"
+        elif cfg.embedding_api_key_encrypted:
+            emb_key = decrypt_api_key(cfg.embedding_api_key_encrypted)
+            key_source = "数据库已存"
+        else:
+            emb_key = None
+            key_source = "复用对话 Key"
+
         print("=" * 62)
         print("  设置 Embedding")
         print("=" * 62)
         print(f"  配置:       {cfg_name}")
         print(f"  向量模型:   {args.model}")
         print(f"  向量地址:   {args.url}")
+        print(f"  向量 Key:   {key_source}")
         print(f"  目标维度:   {REQUIRED_DIM}")
 
         # 构造客户端并测试
@@ -67,6 +82,7 @@ def main():
             api_url=cfg.api_url,
             embedding_model=args.model,
             embedding_url=args.url,
+            embedding_api_key=emb_key,
         )
 
         actual_url = llm._endpoint(args.url, "embeddings")
@@ -98,6 +114,8 @@ def main():
         row = db.query(LLMConfig).filter(LLMConfig.id == cfg_id).first()
         row.embedding_model = args.model
         row.embedding_url = args.url
+        if args.key:
+            row.embedding_api_key_encrypted = encrypt_api_key(args.key)
         db.commit()
 
         print("\n" + "=" * 62)
