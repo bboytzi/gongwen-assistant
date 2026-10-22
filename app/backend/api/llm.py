@@ -44,6 +44,9 @@ def create_config(
         chat_model=req.chat_model,
         embedding_model=req.embedding_model,
         embedding_url=req.embedding_url,
+        embedding_api_key_encrypted=(
+            encrypt_api_key(req.embedding_api_key) if req.embedding_api_key else None
+        ),
     )
     db.add(config)
     db.commit()
@@ -79,6 +82,11 @@ def update_config(
         config.embedding_model = req.embedding_model
     if req.embedding_url is not None:
         config.embedding_url = req.embedding_url
+    if req.embedding_api_key is not None:
+        # 传空串表示清除独立 Key，回退为复用主 Key
+        config.embedding_api_key_encrypted = (
+            encrypt_api_key(req.embedding_api_key) if req.embedding_api_key else None
+        )
     if req.is_active is not None and req.is_active:
         # Deactivate all other configs for this user
         db.query(LLMConfig).filter(
@@ -121,6 +129,7 @@ def test_llm(req: LLMTestRequest):
             api_url=req.api_url,
             embedding_model=req.embedding_model,
             embedding_url=req.embedding_url,
+            embedding_api_key=req.embedding_api_key,
         )
         result = llm.test_connectivity()
         llm.close()
