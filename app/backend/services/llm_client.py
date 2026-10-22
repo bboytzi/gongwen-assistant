@@ -16,7 +16,7 @@ PROVIDER_DEFAULTS = {
     "qwen": {
         "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "chat_model": "qwen-plus",
-        "embedding_model": "text-embedding-v2",
+        "embedding_model": "text-embedding-v3",
         "embedding_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
     },
     "zhipu": {
@@ -24,6 +24,13 @@ PROVIDER_DEFAULTS = {
         "chat_model": "glm-4-flash",
         "embedding_model": "embedding-3",
         "embedding_url": "https://open.bigmodel.cn/api/paas/v4",
+    },
+    # 腾讯云 TokenHub 国际站：对话与向量接口路径不同，必须分别指定
+    "tokenhub": {
+        "api_url": "https://tokenhub-intl.tencentcloudmaas.com/plan/v3",
+        "chat_model": "deepseek/deepseek-flash",
+        "embedding_model": "kinfra-text-embedding-0.6b",
+        "embedding_url": "https://tokenhub-intl.tencentcloudmaas.com/v1",
     },
     "custom": {
         "api_url": "",
