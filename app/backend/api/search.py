@@ -62,6 +62,10 @@ def search(
         raise HTTPException(status_code=400, detail="No active LLM config. Please configure one in Settings.")
 
     api_key = decrypt_api_key(llm_config.api_key_encrypted)
+    emb_key = (
+        decrypt_api_key(llm_config.embedding_api_key_encrypted)
+        if llm_config.embedding_api_key_encrypted else None
+    )
     llm = LLMClient(
         provider=llm_config.provider,
         api_key=api_key,
@@ -69,6 +73,7 @@ def search(
         api_url=llm_config.api_url,
         embedding_model=llm_config.embedding_model,
         embedding_url=llm_config.embedding_url,
+        embedding_api_key=emb_key,
     )
 
     try:
