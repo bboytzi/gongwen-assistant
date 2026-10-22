@@ -175,9 +175,18 @@ def create_admin(db, username, password, department=None):
     """创建或重置管理员账号。"""
     print(f"\n[3/4] 管理员账号: {username}")
 
+    # 先算哈希，失败时给出明确指引（常见于 bcrypt 版本不兼容）
+    try:
+        pwd_hash = hash_password(password)
+    except Exception as e:
+        print(f"  [FAIL] 密码哈希失败: {e}")
+        print("         常见原因：bcrypt 库缺失或与 passlib 版本冲突")
+        print("         修复：docker exec -it claw-backend pip install 'bcrypt==4.2.0'")
+        return None
+
     existing = db.query(User).filter(User.username == username).first()
     if existing:
-        existing.password_hash = hash_password(password)
+        existing.password_hash = pwd_hash
         existing.role = "admin"
         if department:
             existing.department = department
@@ -187,7 +196,7 @@ def create_admin(db, username, password, department=None):
 
     user = User(
         username=username,
-        password_hash=hash_password(password),
+        password_hash=pwd_hash,
         role="admin",
         department=department,
     )
@@ -283,6 +292,11 @@ def main():
             return 0
 
         user = create_admin(db, args.username, args.password, args.department)
+        if user is None:
+            print("\n账号创建失败，已中止。数据库结构修复部分仍然生效。")
+            print("=" * 64)
+            return 1
+
         ensure_personal_kb(db, user)
         kb = ensure_company_kb(db)
 
