@@ -124,8 +124,11 @@ def test_llm(req: LLMTestRequest):
             embedding_ok=result["embedding_ok"],
             chat_latency_ms=result["chat_latency_ms"],
             embedding_latency_ms=result["embedding_latency_ms"],
+            embedding_dim=result.get("embedding_dim"),
             chat_error=result["chat_error"],
             embedding_error=result["embedding_error"],
+            resolved_chat_url=result.get("resolved_chat_url"),
+            resolved_embedding_url=result.get("resolved_embedding_url"),
         )
     except Exception as e:
         return LLMTestResult(
