@@ -48,6 +48,7 @@ class EmbeddingResponse:
     model: str = ""
     tokens: int = 0
     latency_ms: int = 0
+    dim: int = 0
 
 
 class LLMClient:
@@ -71,6 +72,40 @@ class LLMClient:
         self.embedding_url = embedding_url or defaults["embedding_url"] or self.api_url
         self.client = httpx.Client(timeout=120.0)
 
+    # ------------------------------------------------------------ URL 拼接
+
+    # 已知的 endpoint 尾段。用户可能在「API 地址」里直接粘贴了完整接口地址
+    # （例如 https://xxx/v1/chat/completions），此时不能再追加一次。
+    _CHAT_SUFFIXES = ("/chat/completions",)
+    _EMBED_SUFFIXES = ("/embeddings", "/embedding")
+
+    @classmethod
+    def _endpoint(cls, base: str, path: str) -> str:
+        """把 base URL 与 endpoint 路径拼成完整地址，容忍三种常见填法：
+
+        1. base 只有版本前缀    https://api.deepseek.com/v1
+                              -> https://api.deepseek.com/v1/chat/completions
+        2. base 已是完整接口    https://x.com/v1/chat/completions
+                              -> 原样返回（不重复追加）
+        3. base 是另一种接口    https://x.com/v1/embeddings  且要 chat
+                              -> https://x.com/v1/chat/completions（替换尾段）
+        """
+        url = (base or "").rstrip("/")
+        if not url:
+            raise ValueError("API 地址为空，请在设置中填写接口地址")
+
+        all_suffixes = cls._CHAT_SUFFIXES + cls._EMBED_SUFFIXES
+        for suffix in all_suffixes:
+            if url.endswith(suffix):
+                stem = url[: -len(suffix)]
+                if suffix == f"/{path}":
+                    return url
+                return f"{stem}/{path}"
+
+        return f"{url}/{path}"
+
+    # ------------------------------------------------------------ API 调用
+
     def chat(
         self,
         messages: list[dict],
@@ -78,7 +113,7 @@ class LLMClient:
         max_tokens: int = 4096,
         stream: bool = False,
     ) -> LLMResponse:
-        url = f"{self.api_url}/chat/completions"
+        url = self._endpoint(self.api_url, "chat/completions")
         payload = {
             "model": self.chat_model,
             "messages": messages,
@@ -93,7 +128,8 @@ class LLMClient:
         t0 = time.time()
         resp = self.client.post(url, json=payload, headers=headers)
         latency = int((time.time() - t0) * 1000)
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            raise RuntimeError(f"{resp.status_code} {url} — {resp.text[:300]}")
         data = resp.json()
         choice = data["choices"][0]["message"]
         usage = data.get("usage", {})
@@ -106,8 +142,11 @@ class LLMClient:
 
     def embed(self, text: str) -> EmbeddingResponse:
         if not self.embedding_model:
-            raise ValueError(f"Provider {self.provider} has no embedding model configured")
-        url = f"{self.embedding_url}/embeddings"
+            raise ValueError(
+                f"未配置 Embedding 模型（当前 provider={self.provider}）。"
+                "请在设置中填写向量模型名称，例如 kinfra-text-embedding-0.6b 或 text-embedding-v2"
+            )
+        url = self._endpoint(self.embedding_url, "embeddings")
         payload = {
             "model": self.embedding_model,
             "input": text,
@@ -119,24 +158,30 @@ class LLMClient:
         t0 = time.time()
         resp = self.client.post(url, json=payload, headers=headers)
         latency = int((time.time() - t0) * 1000)
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            raise RuntimeError(f"{resp.status_code} {url} — {resp.text[:300]}")
         data = resp.json()
+        vector = data["data"][0]["embedding"]
         return EmbeddingResponse(
-            vector=data["data"][0]["embedding"],
+            vector=vector,
             model=data.get("model", self.embedding_model),
             tokens=data.get("usage", {}).get("total_tokens", 0),
             latency_ms=latency,
+            dim=len(vector),
         )
 
     def test_connectivity(self) -> dict:
-        """Test both chat and embedding endpoints."""
+        """测试对话与向量两个接口的连通性。"""
         result = {
             "chat_ok": False,
             "embedding_ok": False,
             "chat_latency_ms": None,
             "embedding_latency_ms": None,
+            "embedding_dim": None,
             "chat_error": None,
             "embedding_error": None,
+            "resolved_chat_url": self._safe_endpoint(self.api_url, "chat/completions"),
+            "resolved_embedding_url": self._safe_endpoint(self.embedding_url, "embeddings"),
         }
         # Test chat
         try:
@@ -155,12 +200,26 @@ class LLMClient:
                 r = self.embed("test")
                 result["embedding_ok"] = True
                 result["embedding_latency_ms"] = r.latency_ms
+                result["embedding_dim"] = r.dim
+                if r.dim and r.dim != 1024:
+                    result["embedding_error"] = (
+                        f"模型返回 {r.dim} 维向量，但数据库向量列固定为 1024 维。"
+                        "请换用 1024 维的 embedding 模型，否则只能使用关键词检索。"
+                    )
             except Exception as e:
                 result["embedding_error"] = str(e)
         else:
-            result["embedding_error"] = "No embedding model configured"
+            result["embedding_error"] = "未配置 Embedding 模型"
 
         return result
+
+    @classmethod
+    def _safe_endpoint(cls, base: str, path: str) -> Optional[str]:
+        """仅用于回显解析后的地址，出错时返回 None 而不抛异常。"""
+        try:
+            return cls._endpoint(base, path)
+        except Exception:
+            return None
 
     def close(self):
         self.client.close()
