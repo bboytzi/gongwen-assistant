@@ -158,6 +158,10 @@ def check_llm(db):
             api_url=active.api_url,
             embedding_model=active.embedding_model,
             embedding_url=active.embedding_url,
+            embedding_api_key=(
+                decrypt_api_key(active.embedding_api_key_encrypted)
+                if active.embedding_api_key_encrypted else None
+            ),
         )
     except Exception as e:
         print(f"{FAIL} 客户端初始化失败: {e}")
