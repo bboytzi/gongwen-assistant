@@ -69,6 +69,7 @@ class LLMClient:
         api_url: Optional[str] = None,
         embedding_model: Optional[str] = None,
         embedding_url: Optional[str] = None,
+        embedding_api_key: Optional[str] = None,
     ):
         defaults = PROVIDER_DEFAULTS.get(provider, PROVIDER_DEFAULTS["custom"])
         self.provider = provider
@@ -77,6 +78,9 @@ class LLMClient:
         self.api_url = api_url or defaults["api_url"]
         self.embedding_model = embedding_model or defaults["embedding_model"]
         self.embedding_url = embedding_url or defaults["embedding_url"] or self.api_url
+        # 向量接口可独立配置 Key：TokenHub 的 Token Plan Key 仅对 /plan/v3 有效，
+        # 调用 /v1 按量计费接口需要另一个 Key
+        self.embedding_api_key = embedding_api_key or api_key
         self.client = httpx.Client(timeout=120.0)
 
     # ------------------------------------------------------------ URL 拼接
@@ -159,14 +163,21 @@ class LLMClient:
             "input": text,
         }
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {self.embedding_api_key}",
             "Content-Type": "application/json",
         }
         t0 = time.time()
         resp = self.client.post(url, json=payload, headers=headers)
         latency = int((time.time() - t0) * 1000)
         if resp.status_code >= 400:
-            raise RuntimeError(f"{resp.status_code} {url} — {resp.text[:300]}")
+            hint = ""
+            if resp.status_code == 401 and self.embedding_api_key == self.api_key:
+                hint = (
+                    "｜提示：该 Key 与对话接口共用。若对话正常而这里 401，"
+                    "说明向量接口需要独立的 Key（如 TokenHub 的 Token Plan Key "
+                    "只能调 /plan/v3，不能调 /v1 按量计费接口）"
+                )
+            raise RuntimeError(f"{resp.status_code} {url} — {resp.text[:300]}{hint}")
         data = resp.json()
         vector = data["data"][0]["embedding"]
         return EmbeddingResponse(
