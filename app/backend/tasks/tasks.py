@@ -77,13 +77,26 @@ def process_kb_document(doc_id: str):
                 print(f"[kb] LLM 客户端初始化失败: {e}")
 
         # 写入分块；有 embedding 能力时顺带写入向量
+        EXPECTED_DIM = 1024  # 与 document_chunks.embedding 的 vector(1024) 保持一致
         embedded_count = 0
+        embed_note = None
+
         for i, chunk_text_content in enumerate(chunks):
             embedding_value = None
             if embed_ready:
                 try:
-                    embedding_value = str(llm.embed(chunk_text_content).vector)
-                    embedded_count += 1
+                    vec = llm.embed(chunk_text_content).vector
+                    if len(vec) != EXPECTED_DIM:
+                        # 维度不匹配：关闭后续向量化，避免每个分块都报一次错
+                        embed_ready = False
+                        embed_note = (
+                            f"Embedding 模型返回 {len(vec)} 维向量，"
+                            f"与数据库 {EXPECTED_DIM} 维不匹配，已跳过向量化"
+                        )
+                        print(f"[kb] {embed_note}")
+                    else:
+                        embedding_value = str(vec)
+                        embedded_count += 1
                 except Exception as e:
                     print(f"[kb] 分块 {i} 向量化失败: {e}")
 
@@ -97,12 +110,19 @@ def process_kb_document(doc_id: str):
 
         # 更新状态：文本已入库即视为完成，向量化情况记录在 meta
         doc.status = "done"
+        if embedded_count > 0:
+            note = None
+        elif embed_note:
+            note = embed_note + "，当前仅支持关键词检索"
+        else:
+            note = "未配置 Embedding 模型，仅支持关键词检索"
+
         doc.meta = {
             "chunk_count": len(chunks),
             "embedded_count": embedded_count,
             "pages": len(pages),
             "vector_indexed": embedded_count > 0,
-            "note": None if embedded_count > 0 else "未配置 Embedding 模型，仅支持关键词检索",
+            "note": note,
         }
         doc.error_message = None
         db.commit()
@@ -111,6 +131,7 @@ def process_kb_document(doc_id: str):
             "status": "done",
             "chunks": len(chunks),
             "embedded": embedded_count,
+            "note": note,
         }
 
     except Exception as e:
