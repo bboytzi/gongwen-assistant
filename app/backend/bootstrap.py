@@ -98,6 +98,12 @@ def fix_schema(db):
             "ALTER TABLE kb_documents ADD COLUMN IF NOT EXISTS search_tsv tsvector",
             "字段 kb_documents.search_tsv")
 
+    # --- LLM 配置：向量接口独立 Key ---
+    run_sql(db,
+            "ALTER TABLE llm_configs "
+            "ADD COLUMN IF NOT EXISTS embedding_api_key_encrypted TEXT",
+            "字段 llm_configs.embedding_api_key_encrypted")
+
     run_sql(db, """
         CREATE INDEX IF NOT EXISTS idx_kb_documents_search_tsv
             ON kb_documents USING GIN(search_tsv)
@@ -171,8 +177,12 @@ def fix_schema(db):
 
 # ---------------------------------------------------------------- accounts
 
-def create_admin(db, username, password, department=None):
-    """创建或重置管理员账号。"""
+def create_admin(db, username, password, department=None, reset_password=False):
+    """创建或提升管理员账号。
+
+    账号已存在时默认不改密码，避免重跑脚本把用户改过的密码重置回默认值；
+    需要重置时显式传 reset_password=True。
+    """
     print(f"\n[3/4] 管理员账号: {username}")
 
     # 先算哈希，失败时给出明确指引（常见于 bcrypt 版本不兼容）
@@ -186,12 +196,17 @@ def create_admin(db, username, password, department=None):
 
     existing = db.query(User).filter(User.username == username).first()
     if existing:
-        existing.password_hash = pwd_hash
-        existing.role = "admin"
-        if department:
+        if reset_password:
+            existing.password_hash = pwd_hash
+            print(f"  [OK]   已重置密码")
+        else:
+            print(f"  [OK]   账号已存在，保留原密码（如需重置加 --reset-password）")
+        if existing.role != "admin":
+            existing.role = "admin"
+            print(f"  [OK]   已提升为 admin")
+        if department and not existing.department:
             existing.department = department
         db.commit()
-        print(f"  [OK]   账号已存在，已重置密码并提升为 admin")
         return existing
 
     user = User(
@@ -267,6 +282,8 @@ def main():
     parser.add_argument("--password", default="Admin@2026", help="管理员密码（默认 Admin@2026）")
     parser.add_argument("--department", default="系统管理", help="部门")
     parser.add_argument("--fix-schema-only", action="store_true", help="只修复数据库结构")
+    parser.add_argument("--reset-password", action="store_true",
+                        help="账号已存在时强制重置密码（默认保留原密码）")
     parser.add_argument("--list-users", action="store_true", help="列出已有账号")
     args = parser.parse_args()
 
@@ -291,7 +308,8 @@ def main():
             print("=" * 64)
             return 0
 
-        user = create_admin(db, args.username, args.password, args.department)
+        user = create_admin(db, args.username, args.password, args.department,
+                            reset_password=args.reset_password)
         if user is None:
             print("\n账号创建失败，已中止。数据库结构修复部分仍然生效。")
             print("=" * 64)
