@@ -8,12 +8,17 @@ from services.llm_client import LLMClient
 from api.auth import get_current_user
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
-PROVIDERS = ["deepseek", "qwen", "zhipu", "custom"]
+PROVIDERS = ["deepseek", "qwen", "zhipu", "tokenhub", "custom"]
 
 
 @router.get("/providers")
 def list_providers():
-    return {"providers": PROVIDERS}
+    """返回可用 provider 及其默认地址，供前端选择时自动填充。"""
+    from services.llm_client import PROVIDER_DEFAULTS
+    return {
+        "providers": PROVIDERS,
+        "defaults": PROVIDER_DEFAULTS,
+    }
 
 
 @router.get("/configs", response_model=list[LLMConfigResponse])
