@@ -48,6 +48,18 @@
               <el-input v-model="form.embedding_url" placeholder="https://tokenhub-intl.tencentcloudmaas.com/v1" />
               <div class="field-hint">向量接口地址。与对话地址不同时必填，留空则复用 API 地址</div>
             </el-form-item>
+            <el-form-item label="Embedding Key">
+              <el-input
+                v-model="form.embedding_api_key"
+                type="password"
+                show-password
+                :placeholder="editing && editing.has_embedding_key ? '已配置，留空则不修改' : '留空则复用上面的 API Key'"
+              />
+              <div class="field-hint">
+                向量接口与对话接口使用不同 Key 时填写。
+                腾讯云 TokenHub 的 Token Plan Key 只能调 /plan/v3，调 /v1 向量接口需另建一个 Key
+              </div>
+            </el-form-item>
             <el-form-item>
               <el-button @click="handleTest" :loading="testing">测试连通性</el-button>
               <el-button type="primary" @click="handleSave">保存</el-button>
@@ -100,6 +112,7 @@ const form = ref({
   chat_model: '',
   embedding_model: '',
   embedding_url: '',
+  embedding_api_key: '',
 })
 
 onMounted(async () => {
@@ -128,7 +141,8 @@ function onProviderChange(provider) {
 function selectConfig(c) {
   editing.value = c
   showForm.value = true
-  form.value = { ...c, api_key: '' }
+  // 两个 Key 都不回显明文，留空表示不修改
+  form.value = { ...c, api_key: '', embedding_api_key: '' }
 }
 
 async function handleTest() {
@@ -143,9 +157,12 @@ async function handleTest() {
 
 async function handleSave() {
   const payload = { ...form.value }
-  // 编辑时若未重新填写 Key，不提交该字段，否则会把已有 Key 覆盖成空串
+  // 编辑时若未重新填写，不提交这些字段，否则会把已存的 Key 覆盖成空串
   if (editing.value && !payload.api_key) {
     delete payload.api_key
+  }
+  if (editing.value && !payload.embedding_api_key) {
+    delete payload.embedding_api_key
   }
   if (editing.value) {
     await api.put(`/llm/configs/${editing.value.id}`, payload)
