@@ -34,12 +34,13 @@ class TokenResponse(BaseModel):
 
 class LLMConfigCreate(BaseModel):
     name: str
-    provider: str  # deepseek / qwen / zhipu / custom
+    provider: str  # deepseek / qwen / zhipu / tokenhub / custom
     api_url: Optional[str] = None
     api_key: str
     chat_model: str
     embedding_model: Optional[str] = None
     embedding_url: Optional[str] = None
+    embedding_api_key: Optional[str] = None
 
 
 class LLMConfigUpdate(BaseModel):
@@ -50,6 +51,7 @@ class LLMConfigUpdate(BaseModel):
     chat_model: Optional[str] = None
     embedding_model: Optional[str] = None
     embedding_url: Optional[str] = None
+    embedding_api_key: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -61,6 +63,7 @@ class LLMConfigResponse(BaseModel):
     chat_model: str
     embedding_model: Optional[str]
     embedding_url: Optional[str]
+    has_embedding_key: bool = False
     is_active: bool
     created_at: datetime
 
@@ -75,6 +78,7 @@ class LLMTestRequest(BaseModel):
     chat_model: str
     embedding_model: Optional[str] = None
     embedding_url: Optional[str] = None
+    embedding_api_key: Optional[str] = None
 
 
 class LLMTestResult(BaseModel):
