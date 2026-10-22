@@ -82,5 +82,8 @@ class LLMTestResult(BaseModel):
     embedding_ok: bool
     chat_latency_ms: Optional[int] = None
     embedding_latency_ms: Optional[int] = None
+    embedding_dim: Optional[int] = None
     chat_error: Optional[str] = None
     embedding_error: Optional[str] = None
+    resolved_chat_url: Optional[str] = None
+    resolved_embedding_url: Optional[str] = None
