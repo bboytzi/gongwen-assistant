@@ -37,11 +37,18 @@ class LLMConfig(Base):
     chat_model = Column(String(100), nullable=False)
     embedding_model = Column(String(100))
     embedding_url = Column(String(500))  # separate embedding endpoint if different
+    # 向量接口可能使用独立的 Key（如 TokenHub 的 Token Plan Key 不能调 /v1 按量计费接口）
+    embedding_api_key_encrypted = Column(Text)
     is_active = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="llm_configs")
+
+    @property
+    def has_embedding_key(self) -> bool:
+        """是否单独配置了向量接口的 Key。"""
+        return bool(self.embedding_api_key_encrypted)
 
 
 class KnowledgeBase(Base):
