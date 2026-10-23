@@ -73,14 +73,15 @@ class LLMClient:
     ):
         defaults = PROVIDER_DEFAULTS.get(provider, PROVIDER_DEFAULTS["custom"])
         self.provider = provider
-        self.api_key = api_key
+        # Key 从网页复制时常带首尾空白，认证会失败，统一清理
+        self.api_key = (api_key or "").strip()
         self.chat_model = chat_model
         self.api_url = api_url or defaults["api_url"]
         self.embedding_model = embedding_model or defaults["embedding_model"]
         self.embedding_url = embedding_url or defaults["embedding_url"] or self.api_url
         # 向量接口可独立配置 Key：TokenHub 的 Token Plan Key 仅对 /plan/v3 有效，
         # 调用 /v1 按量计费接口需要另一个 Key
-        self.embedding_api_key = embedding_api_key or api_key
+        self.embedding_api_key = (embedding_api_key or "").strip() or self.api_key
         self.client = httpx.Client(timeout=120.0)
 
     # ------------------------------------------------------------ URL 拼接
