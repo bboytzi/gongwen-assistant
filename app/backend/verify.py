@@ -15,8 +15,9 @@ import traceback
 from sqlalchemy import text
 
 from core.config import settings
-from core.database import SessionLocal
+from core.database import SessionLocal, engine
 from core.encryption import decrypt_api_key
+from core.schema_guard import ensure_schema
 from models.models import (
     User, KnowledgeBase, KBDocument, Document, LLMConfig,
 )
@@ -265,6 +266,11 @@ def main():
 
     db = SessionLocal()
     try:
+        # 脚本可独立运行，先确保数据库结构是最新的
+        applied = ensure_schema(engine)
+        if applied:
+            print(f"[schema] 已补齐字段: {', '.join(applied)}")
+
         if not check_database(db):
             return 1
         check_extensions(db)
