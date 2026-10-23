@@ -18,8 +18,9 @@ import sys
 
 import httpx
 
-from core.database import SessionLocal
+from core.database import SessionLocal, engine
 from core.encryption import decrypt_api_key
+from core.schema_guard import ensure_schema
 from models.models import LLMConfig
 from services.llm_client import LLMClient
 
@@ -78,6 +79,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--key", help="直接测试这个 Key，不读数据库")
     args = parser.parse_args()
+
+    # 脚本可独立运行，先确保数据库结构是最新的
+    applied = ensure_schema(engine)
+    if applied:
+        print(f"[schema] 已补齐字段: {', '.join(applied)}")
 
     db = SessionLocal()
     try:
