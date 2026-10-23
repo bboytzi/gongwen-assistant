@@ -23,8 +23,9 @@
 import argparse
 import sys
 
-from core.database import SessionLocal
+from core.database import SessionLocal, engine
 from core.encryption import decrypt_api_key, encrypt_api_key
+from core.schema_guard import ensure_schema
 from models.models import LLMConfig
 from services.llm_client import LLMClient
 
@@ -43,6 +44,11 @@ def main():
                         "/plan/v3，调用 /v1 按量计费接口需另一个 Key；留空则复用主 Key")
     p.add_argument("--test-only", action="store_true", help="只测试，不写数据库")
     args = p.parse_args()
+
+    # 脚本可独立运行，先确保数据库结构是最新的
+    applied = ensure_schema(engine)
+    if applied:
+        print(f"[schema] 已补齐字段: {', '.join(applied)}")
 
     db = SessionLocal()
     try:
