@@ -12,6 +12,8 @@ def encrypt_api_key(plaintext: str) -> str:
     """Encrypt an API key using AES-256-GCM. Returns hex string with nonce prepended."""
     if not plaintext:
         return ""
+    # 从网页复制 Key 时常带入首尾空格或换行，认证会直接失败，统一在此清理
+    plaintext = plaintext.strip()
     key = _get_key()
     aesgcm = AESGCM(key)
     nonce = os.urandom(12)
@@ -29,4 +31,5 @@ def decrypt_api_key(encrypted: str) -> str:
     ciphertext = data[12:]
     aesgcm = AESGCM(key)
     plaintext = aesgcm.decrypt(nonce, ciphertext, None)
-    return plaintext.decode("utf-8")
+    # 兼容历史数据里可能存入了首尾空白
+    return plaintext.decode("utf-8").strip()
