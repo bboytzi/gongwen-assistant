@@ -120,16 +120,44 @@ def delete_config(
 
 
 @router.post("/test", response_model=LLMTestResult)
-def test_llm(req: LLMTestRequest):
+def test_llm(
+    req: LLMTestRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    api_key = (req.api_key or "").strip()
+    emb_key = (req.embedding_api_key or "").strip()
+
+    # 编辑已有配置时前端不回显明文 Key，此处回退到数据库里已存的值，
+    # 否则测试请求会带着空 Key 发出去，必然 401
+    if req.config_id and (not api_key or not emb_key):
+        cfg = db.query(LLMConfig).filter(
+            LLMConfig.id == req.config_id,
+            LLMConfig.user_id == current_user.id,
+        ).first()
+        if cfg:
+            if not api_key:
+                api_key = decrypt_api_key(cfg.api_key_encrypted)
+            if not emb_key and cfg.embedding_api_key_encrypted:
+                emb_key = decrypt_api_key(cfg.embedding_api_key_encrypted)
+
+    if not api_key:
+        return LLMTestResult(
+            chat_ok=False,
+            embedding_ok=False,
+            chat_error="未提供 API Key：新建配置时请填写；编辑已有配置时请保存后再测试",
+            embedding_error="未提供 API Key",
+        )
+
     try:
         llm = LLMClient(
             provider=req.provider,
-            api_key=req.api_key,
+            api_key=api_key,
             chat_model=req.chat_model,
             api_url=req.api_url,
             embedding_model=req.embedding_model,
             embedding_url=req.embedding_url,
-            embedding_api_key=req.embedding_api_key,
+            embedding_api_key=emb_key or None,
         )
         result = llm.test_connectivity()
         llm.close()
