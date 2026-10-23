@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
 from core.database import engine, Base
+from core.schema_guard import ensure_schema
 from api.auth import router as auth_router
 from api.llm import router as llm_router
 from api.kb import router as kb_router
@@ -39,8 +40,11 @@ def health():
 
 @app.on_event("startup")
 def startup():
-    # Create tables (in production, use Alembic migrations)
+    # 建表（首次部署）+ 补齐后续版本新增的列（重启即生效）
     Base.metadata.create_all(bind=engine)
+    applied = ensure_schema(engine)
+    if applied:
+        print(f"[startup] 已补齐字段: {', '.join(applied)}")
 
 
 if __name__ == "__main__":
