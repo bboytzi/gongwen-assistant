@@ -74,11 +74,14 @@ class LLMConfigResponse(BaseModel):
 class LLMTestRequest(BaseModel):
     provider: str
     api_url: Optional[str] = None
-    api_key: str
+    # 编辑已有配置时前端不回显明文 Key，允许留空；
+    # 此时通过 config_id 从数据库取已存的 Key
+    api_key: Optional[str] = None
     chat_model: str
     embedding_model: Optional[str] = None
     embedding_url: Optional[str] = None
     embedding_api_key: Optional[str] = None
+    config_id: Optional[str] = None
 
 
 class LLMTestResult(BaseModel):
