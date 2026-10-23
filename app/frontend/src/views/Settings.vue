@@ -149,7 +149,12 @@ async function handleTest() {
   testing.value = true
   testResult.value = null
   try {
-    testResult.value = await api.post('/llm/test', form.value)
+    // 带上 config_id：编辑已有配置时前端不回显明文 Key，
+    // 后端据此回退到数据库里已存的 Key，避免用空 Key 发测试请求
+    const payload = { ...form.value, config_id: editing.value?.id || null }
+    if (!payload.api_key) delete payload.api_key
+    if (!payload.embedding_api_key) delete payload.embedding_api_key
+    testResult.value = await api.post('/llm/test', payload)
   } finally {
     testing.value = false
   }
