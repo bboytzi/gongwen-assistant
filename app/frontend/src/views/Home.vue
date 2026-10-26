@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <div class="crumb">工作台 / 首页</div>
-        <h1 class="page-title">{{ greeting }}，{{ userStore.user?.username || '' }}</h1>
+        <h1 class="page-title">{{ greeting }}，{{ userStore.shownName }}</h1>
         <div class="page-sub">{{ subline }}</div>
       </div>
       <div class="head-actions">
