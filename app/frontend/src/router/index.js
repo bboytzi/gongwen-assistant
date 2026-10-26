@@ -48,6 +48,11 @@ const routes = [
       },
     ],
   },
+  {
+    // 兜底：未知路径回首页，避免白屏
+    path: '/:pathMatch(.*)*',
+    redirect: '/',
+  },
 ]
 
 const router = createRouter({
