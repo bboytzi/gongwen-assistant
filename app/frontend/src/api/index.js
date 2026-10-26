@@ -36,10 +36,18 @@ function formatError(error) {
 api.interceptors.response.use(
   response => response.data,
   error => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    const detail = error.response?.data?.detail
+
+    if (status === 401) {
+      localStorage.removeItem('token')
+      router.push('/login')
+    } else if (status === 403 && typeof detail === 'string' && detail.includes('停用')) {
+      // 账号被管理员停用，已签发的 token 立即失效
       localStorage.removeItem('token')
       router.push('/login')
     }
+
     const msg = formatError(error)
     ElMessage.error(msg)
     return Promise.reject(error)
