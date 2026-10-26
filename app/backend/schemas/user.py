@@ -1,12 +1,13 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
 
 
 class UserCreate(BaseModel):
-    username: str
+    username: str          # 登录名，英文
     password: str
+    display_name: Optional[str] = None   # 显示名，中文
     department: Optional[str] = None
 
 
@@ -18,6 +19,7 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     username: str
+    display_name: Optional[str] = None
     role: str
     department: Optional[str]
     is_active: bool = True
@@ -28,14 +30,16 @@ class UserResponse(BaseModel):
 
 
 class AdminUserCreate(BaseModel):
-    username: str
+    username: str          # 登录名，英文
     password: str
+    display_name: Optional[str] = None   # 显示名，中文
     department: Optional[str] = None
     role: str = "user"
 
 
 class AdminUserUpdate(BaseModel):
     username: Optional[str] = None
+    display_name: Optional[str] = None
     department: Optional[str] = None
     role: Optional[str] = None
     is_active: Optional[bool] = None
@@ -44,6 +48,7 @@ class AdminUserUpdate(BaseModel):
 
 class ProfileUpdate(BaseModel):
     username: Optional[str] = None
+    display_name: Optional[str] = None
     department: Optional[str] = None
 
 
