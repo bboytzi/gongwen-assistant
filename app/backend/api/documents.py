@@ -102,7 +102,7 @@ def export_document(
         "起草部门": key_elements.get("起草部门", current_user.department or ""),
         "文号": key_elements.get("文号", ""),
         "签发人": key_elements.get("签发人", ""),
-        "联系人": current_user.username,
+        "联系人": current_user.display_name or current_user.username,
     }
 
     # Render
