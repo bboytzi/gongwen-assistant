@@ -211,9 +211,11 @@ def create_admin(db, username, password, department=None, reset_password=False):
 
     user = User(
         username=username,
+        display_name="系统管理员",
         password_hash=pwd_hash,
         role="admin",
         department=department,
+        is_active=True,
     )
     db.add(user)
     db.commit()
