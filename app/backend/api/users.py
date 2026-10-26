@@ -65,6 +65,9 @@ def update_me(
                 raise HTTPException(status_code=400, detail="用户名已被占用")
             current_user.username = name
 
+    if req.display_name is not None:
+        current_user.display_name = req.display_name.strip() or None
+
     if req.department is not None:
         current_user.department = req.department.strip() or None
 
@@ -123,6 +126,7 @@ def create_user(
 
     user = User(
         username=name,
+        display_name=(req.display_name or "").strip() or None,
         password_hash=hash_password(req.password),
         department=(req.department or "").strip() or None,
         role=req.role,
@@ -132,10 +136,10 @@ def create_user(
     db.commit()
     db.refresh(user)
 
-    # 新用户自动创建个人知识库
+    # 新用户自动创建个人知识库，用显示名命名更直观
     db.add(KnowledgeBase(
         user_id=user.id,
-        name=f"{user.username}的个人库",
+        name=f"{user.display_name or user.username}的个人库",
         level="personal",
     ))
     db.commit()
@@ -182,6 +186,9 @@ def update_user(
             if taken:
                 raise HTTPException(status_code=400, detail="用户名已被占用")
             user.username = name
+
+    if req.display_name is not None:
+        user.display_name = req.display_name.strip() or None
 
     if req.department is not None:
         user.department = req.department.strip() or None
