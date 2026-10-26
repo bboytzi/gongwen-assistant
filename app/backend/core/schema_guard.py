@@ -16,6 +16,7 @@ MIGRATIONS = [
     ("kb_documents", "search_tsv", "tsvector"),
     ("llm_configs", "embedding_api_key_encrypted", "TEXT"),
     ("users", "is_active", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("users", "display_name", "VARCHAR(100)"),
 ]
 
 
