@@ -21,6 +21,9 @@ def get_current_user(
     user = db.query(User).filter(User.id == payload["sub"]).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    # 停用后已签发的 token 立即失效
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="账号已停用，请联系管理员")
     return user
 
 
@@ -50,7 +53,9 @@ def register(req: UserCreate, db: Session = Depends(get_db)):
 def login(req: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == req.username).first()
     if not user or not verify_password(req.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="账号已停用，请联系管理员")
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(access_token=token, user=UserResponse.model_validate(user))
 
