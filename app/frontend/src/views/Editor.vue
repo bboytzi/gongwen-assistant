@@ -7,6 +7,18 @@
         <div class="page-sub">{{ subline }}</div>
       </div>
       <div class="head-actions">
+        <div class="view-switch">
+          <span
+            class="vs-item"
+            :class="{ active: viewMode === 'edit' }"
+            @click="switchView('edit')"
+          >编辑</span>
+          <span
+            class="vs-item"
+            :class="{ active: viewMode === 'source' }"
+            @click="switchView('source')"
+          >溯源</span>
+        </div>
         <span class="save-state">{{ saveState }}</span>
         <el-button @click="showExport = true" :disabled="!doc">导出 Word</el-button>
       </div>
@@ -24,6 +36,7 @@
       <div class="editor-col">
         <div class="paper">
           <el-input
+            v-if="viewMode === 'edit'"
             v-model="content"
             type="textarea"
             :rows="24"
@@ -32,21 +45,76 @@
             :disabled="!doc"
             @input="onContentChange"
           />
+
+          <div v-else v-loading="loadingCitations" class="paper-read">
+            <template v-if="citations">
+              <p
+                v-for="(para, pi) in citations.paragraphs"
+                :key="pi"
+                class="read-para"
+              >
+                <span
+                  v-for="(s, si) in para"
+                  :key="si"
+                  class="sent"
+                  :class="{
+                    cited: s.ref_index !== null,
+                    active: s.ref_index !== null && s.ref_index === activeRef,
+                  }"
+                  @click="onSentenceClick(s)"
+                >{{ s.text }}<sup v-if="s.ref_index !== null" class="mark">{{ s.ref_index + 1 }}</sup></span>
+              </p>
+              <div v-if="citations.paragraphs.length === 0" class="read-empty">
+                正文为空，暂无可溯源的句子
+              </div>
+            </template>
+          </div>
         </div>
+
         <div class="editor-foot">
-          <span>{{ content.length }} 字</span>
-          <span>版本 {{ doc?.version ?? '-' }}</span>
-          <span class="foot-note">正文按仿宋排版，导出后与预览一致</span>
+          <template v-if="viewMode === 'edit'">
+            <span>{{ content.length }} 字</span>
+            <span>版本 {{ doc?.version ?? '-' }}</span>
+            <span class="foot-note">正文按仿宋排版，导出后与预览一致</span>
+          </template>
+          <template v-else>
+            <span v-if="citations">
+              {{ citations.cited_count }} / {{ citations.sentence_count }} 句已溯源
+            </span>
+            <span class="foot-note">
+              点击带下划线的句子，可查看它来自哪份材料
+            </span>
+          </template>
         </div>
       </div>
 
       <div class="side-col">
         <div class="card card-pad">
-          <div class="card-title">引用溯源</div>
-          <div v-if="references.length === 0" class="ref-empty">暂无引用记录</div>
-          <div v-for="(ref, i) in references" :key="i" class="ref-item">
-            <div class="ref-title">{{ ref.title }}</div>
+          <div class="card-title">
+            引用溯源
+            <span v-if="citations?.references?.length" class="ref-count">
+              {{ citations.references.length }} 份材料
+            </span>
+          </div>
+
+          <div v-if="!citations?.references?.length" class="ref-empty">
+            暂无引用记录。生成完成后这里会列出参考过的制度与案例。
+          </div>
+
+          <div
+            v-for="ref in citations?.references || []"
+            :id="`ref-card-${ref.index}`"
+            :key="ref.index"
+            class="ref-item"
+            :class="{ active: activeRef === ref.index }"
+            @click="onRefClick(ref.index)"
+          >
+            <div class="ref-head">
+              <span class="ref-no">{{ ref.index + 1 }}</span>
+              <span class="ref-title">{{ ref.title }}</span>
+            </div>
             <div class="ref-body">{{ (ref.content || '').substring(0, 90) }}…</div>
+            <div v-if="ref.source" class="ref-source">{{ ref.source }}</div>
           </div>
         </div>
 
@@ -79,7 +147,6 @@ const docId = computed(() => route.params.id)
 
 const doc = ref(null)
 const content = ref('')
-const references = ref([])
 const showExport = ref(false)
 const exportTemplates = ref([])
 
@@ -87,6 +154,11 @@ const loading = ref(true)
 const loadError = ref('')
 const saving = ref(false)
 const savedAt = ref('')
+
+const viewMode = ref('edit')
+const citations = ref(null)
+const loadingCitations = ref(false)
+const activeRef = ref(null)
 
 let saveTimer = null
 
@@ -121,17 +193,46 @@ onMounted(async () => {
     exportTemplates.value = await api.get('/documents/templates')
   } catch { /* 导出时再提示 */ }
 
-  try {
-    const task = await api.get(`/documents/${docId.value}/task`)
-    references.value = task.references || []
-  } catch { /* 无生成记录时忽略 */ }
-
   loading.value = false
 })
 
 onUnmounted(() => {
   if (saveTimer) clearTimeout(saveTimer)
 })
+
+function switchView(mode) {
+  if (mode === viewMode.value) return
+  viewMode.value = mode
+  activeRef.value = null
+  if (mode === 'source') loadCitations()
+}
+
+async function loadCitations() {
+  loadingCitations.value = true
+  try {
+    citations.value = await api.get(`/documents/${docId.value}/citations`)
+  } catch {
+    citations.value = null
+  } finally {
+    loadingCitations.value = false
+  }
+}
+
+function onSentenceClick(sentence) {
+  if (sentence.ref_index === null) {
+    activeRef.value = null
+    return
+  }
+  activeRef.value = activeRef.value === sentence.ref_index ? null : sentence.ref_index
+  if (activeRef.value !== null) {
+    const el = document.getElementById(`ref-card-${activeRef.value}`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+}
+
+function onRefClick(index) {
+  activeRef.value = activeRef.value === index ? null : index
+}
 
 function onContentChange() {
   if (saveTimer) clearTimeout(saveTimer)
@@ -143,6 +244,8 @@ function onContentChange() {
       })
       doc.value = { ...doc.value, version: res.version }
       savedAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+      // 内容变了，下次进溯源视图要重新匹配
+      citations.value = null
     } finally {
       saving.value = false
     }
@@ -162,6 +265,26 @@ function onContentChange() {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.view-switch {
+  display: flex;
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+
+.vs-item {
+  padding: 5px 14px;
+  font-size: 12px;
+  color: var(--ink-3);
+  cursor: pointer;
+  background: var(--paper-3);
+}
+
+.vs-item.active {
+  background: var(--seal-soft);
+  color: var(--seal);
 }
 
 .save-state {
@@ -205,6 +328,52 @@ function onContentChange() {
   box-shadow: none;
 }
 
+.paper-read {
+  min-height: 492px;
+  font-family: "FangSong", "STFangsong", "SimSun", var(--font-serif);
+  font-size: 13.5px;
+  line-height: 2.1;
+  color: var(--ink);
+}
+
+.read-para {
+  margin: 0 0 2px;
+  text-indent: 2em;
+}
+
+.sent {
+  cursor: default;
+}
+
+.sent.cited {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--seal-line);
+  padding-bottom: 1px;
+}
+
+.sent.cited:hover {
+  background: var(--seal-soft);
+}
+
+.sent.active {
+  background: var(--seal-soft);
+  border-bottom-color: var(--seal);
+}
+
+.mark {
+  font-size: 9px;
+  color: var(--seal);
+  margin-left: 1px;
+  vertical-align: super;
+  line-height: 0;
+}
+
+.read-empty {
+  font-size: 12px;
+  color: var(--ink-4);
+  text-indent: 0;
+}
+
 .editor-foot {
   display: flex;
   align-items: center;
@@ -219,7 +388,7 @@ function onContentChange() {
 }
 
 .side-col {
-  width: 244px;
+  width: 268px;
   flex-shrink: 0;
 }
 
@@ -229,33 +398,81 @@ function onContentChange() {
 
 .side-col .card-title {
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.ref-count {
+  margin-left: auto;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--ink-4);
+  font-weight: 400;
 }
 
 .ref-empty {
   font-size: 12px;
   color: var(--ink-4);
-  padding: 6px 0 4px;
+  line-height: 1.7;
+  padding: 4px 0;
 }
 
 .ref-item {
-  padding: 8px 0;
-  border-bottom: 0.5px solid var(--line-2);
+  padding: 9px 10px;
+  border-radius: var(--r-sm);
+  border: 0.5px solid transparent;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.15s, border-color 0.15s;
 }
 
-.ref-item:last-child {
-  border-bottom: none;
+.ref-item:hover {
+  background: var(--paper-3);
+}
+
+.ref-item.active {
+  background: var(--seal-soft);
+  border-color: var(--seal-line);
+}
+
+.ref-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.ref-no {
+  font-size: 9px;
+  color: #fff;
+  background: var(--seal);
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .ref-title {
   font-size: 12px;
   color: var(--ink);
-  margin-bottom: 3px;
+  line-height: 1.5;
 }
 
 .ref-body {
   font-size: 11px;
   color: var(--ink-4);
   line-height: 1.6;
+}
+
+.ref-source {
+  font-size: 10px;
+  color: var(--ink-4);
+  margin-top: 4px;
+  opacity: 0.8;
 }
 
 .tip {
