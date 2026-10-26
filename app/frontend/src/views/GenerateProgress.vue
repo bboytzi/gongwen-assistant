@@ -26,7 +26,7 @@
         <el-card shadow="never">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <span style="font-weight: 600;">内容预览</span>
-            <el-button v-if="task?.status === 'completed'" type="primary" @click="$router.push(`/documents/${docId}/edit`)">编辑文档</el-button>
+            <el-button v-if="task?.status === 'completed'" type="primary" @click="router.push(`/documents/${docId}/edit`)">编辑文档</el-button>
           </div>
           <div v-if="task?.status === 'completed'" style="white-space: pre-wrap; line-height: 1.8; min-height: 400px;">
             {{ task.result_content }}
