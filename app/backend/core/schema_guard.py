@@ -15,6 +15,7 @@ from sqlalchemy import text
 MIGRATIONS = [
     ("kb_documents", "search_tsv", "tsvector"),
     ("llm_configs", "embedding_api_key_encrypted", "TEXT"),
+    ("users", "is_active", "BOOLEAN NOT NULL DEFAULT TRUE"),
 ]
 
 
