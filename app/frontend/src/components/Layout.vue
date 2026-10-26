@@ -20,7 +20,7 @@
         <el-dropdown trigger="click">
           <div class="user">
             <div class="avatar">{{ initial }}</div>
-            <span class="user-name">{{ userStore.user?.username || '-' }}</span>
+            <span class="user-name">{{ userStore.shownName || '-' }}</span>
             <el-icon class="caret"><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
@@ -95,7 +95,7 @@ const keyword = ref('')
 const searchRef = ref(null)
 
 const initial = computed(() =>
-  (userStore.user?.username || 'A').charAt(0).toUpperCase()
+  (userStore.shownName || 'A').charAt(0).toUpperCase()
 )
 
 const isAdmin = computed(() => userStore.user?.role === 'admin')
