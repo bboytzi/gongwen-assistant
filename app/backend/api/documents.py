@@ -80,9 +80,17 @@ def export_document(
     # Get template
     template_path = None
     if req.template_id:
-        template = db.query(WordTemplate).filter(WordTemplate.id == req.template_id).first()
-        if template:
-            template_path = template.file_path
+        try:
+            UUID(str(req.template_id))
+        except (ValueError, AttributeError, TypeError):
+            # 非 UUID（如内置的 system-default）→ 走默认公文格式
+            req.template_id = None
+        if req.template_id:
+            template = db.query(WordTemplate).filter(
+                WordTemplate.id == req.template_id
+            ).first()
+            if template and template.file_path:
+                template_path = template.file_path
 
     # Prepare replacements from document content and config
     key_elements = doc.generation_config.get("key_elements", {}) if doc.generation_config else {}
@@ -155,7 +163,7 @@ def list_templates(
     # System templates + user's templates
     system = db.query(WordTemplate).filter(WordTemplate.is_system == True).all()
     user_templates = db.query(WordTemplate).filter(WordTemplate.user_id == current_user.id).all()
-    return [
+    result = [
         {
             "id": str(t.id),
             "name": t.name,
@@ -165,6 +173,19 @@ def list_templates(
         }
         for t in system + user_templates
     ]
+
+    # 一个模板都没上传时，给一个内置格式选项，避免下拉框空白
+    if not result:
+        result.append({
+            "id": "system-default",
+            "name": "系统默认公文格式",
+            "description": "标题方正小标宋2号、正文方正仿宋3号、行距30磅，"
+                           "页边距上37下35左28右26mm",
+            "placeholders": [],
+            "is_system": True,
+        })
+
+    return result
 
 
 # ---------------------------------------------------------------- 动态路径
