@@ -101,7 +101,7 @@ class SearchResponse(BaseModel):
 
 
 class ExportRequest(BaseModel):
-    document_id: str
+    document_id: UUID
     template_id: Optional[str] = None
     include_references: bool = True
     include_appendix: bool = True
