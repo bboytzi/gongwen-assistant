@@ -33,7 +33,8 @@ def register(req: UserCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
     user = User(
-        username=req.username,
+        username=req.username.strip(),
+        display_name=(req.display_name or "").strip() or None,
         password_hash=hash_password(req.password),
         department=req.department,
     )
@@ -42,7 +43,11 @@ def register(req: UserCreate, db: Session = Depends(get_db)):
     db.refresh(user)
     # Auto-create personal knowledge base
     from models.models import KnowledgeBase
-    kb = KnowledgeBase(user_id=user.id, name=f"{user.username}的个人库", level="personal")
+    kb = KnowledgeBase(
+        user_id=user.id,
+        name=f"{user.display_name or user.username}的个人库",
+        level="personal",
+    )
     db.add(kb)
     db.commit()
     token = create_access_token({"sub": str(user.id)})
