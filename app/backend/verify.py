@@ -173,9 +173,18 @@ def check_llm(db):
     try:
         r = llm.chat(
             [{"role": "user", "content": "回复两个字：正常"}],
-            max_tokens=20,
+            max_tokens=32,
         )
-        print(f"{OK} 对话接口 {r.latency_ms}ms → {r.content.strip()[:40]}")
+        text = r.content.strip()
+        if text:
+            print(f"{OK} 对话接口 {r.latency_ms}ms → {text[:40]}")
+        else:
+            # 部分模型（如带思考模式的 DeepSeek V4）在 max_tokens 过小时
+            # 把额度全用在推理上，content 会是空的
+            print(f"{WARN} 对话接口 {r.latency_ms}ms 返回空内容")
+            print(f"       可能原因：max_tokens 太小被推理过程占满，"
+                  f"或该模型不支持此调用方式")
+            record("WARN", "对话接口返回空内容，生成可能拿不到正文")
     except Exception as e:
         print(f"{FAIL} 对话接口失败: {e}")
         record("FAIL", f"对话接口不可用: {str(e)[:150]}")
