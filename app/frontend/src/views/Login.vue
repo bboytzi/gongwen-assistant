@@ -22,8 +22,8 @@
 
       <div v-if="activeTab === 'login'" class="form">
         <div class="field">
-          <label>用户名</label>
-          <el-input v-model="loginForm.username" placeholder="请输入用户名" @keyup.enter="handleLogin" />
+          <label>登录名</label>
+          <el-input v-model="loginForm.username" placeholder="英文登录名" @keyup.enter="handleLogin" />
         </div>
         <div class="field">
           <label>密码</label>
@@ -42,12 +42,16 @@
 
       <div v-else class="form">
         <div class="field">
-          <label>用户名</label>
-          <el-input v-model="regForm.username" placeholder="设置用户名" />
+          <label>登录名 <span class="opt">英文</span></label>
+          <el-input v-model="regForm.username" placeholder="zhangsan" />
+        </div>
+        <div class="field">
+          <label>显示名 <span class="opt">中文</span></label>
+          <el-input v-model="regForm.display_name" placeholder="张三" />
         </div>
         <div class="field">
           <label>密码</label>
-          <el-input v-model="regForm.password" type="password" show-password placeholder="设置密码" />
+          <el-input v-model="regForm.password" type="password" show-password placeholder="至少 6 位" />
         </div>
         <div class="field">
           <label>部门</label>
@@ -77,7 +81,7 @@ const userStore = useUserStore()
 const activeTab = ref('login')
 const loading = ref(false)
 const loginForm = ref({ username: '', password: '' })
-const regForm = ref({ username: '', password: '', department: '' })
+const regForm = ref({ username: '', display_name: '', password: '', department: '' })
 
 async function handleLogin() {
   if (!loginForm.value.username || !loginForm.value.password) {
@@ -97,14 +101,23 @@ async function handleLogin() {
 
 async function handleRegister() {
   if (!regForm.value.username || !regForm.value.password) {
-    ElMessage.warning('请输入用户名和密码')
+    ElMessage.warning('请填写登录名和密码')
+    return
+  }
+  if (!/^[A-Za-z0-9_.-]+$/.test(regForm.value.username.trim())) {
+    ElMessage.warning('登录名只能包含字母、数字、下划线、点和短横线')
+    return
+  }
+  if (regForm.value.password.length < 6) {
+    ElMessage.warning('密码至少 6 位')
     return
   }
   loading.value = true
   try {
     await userStore.register(
-      regForm.value.username,
+      regForm.value.username.trim(),
       regForm.value.password,
+      regForm.value.display_name.trim() || null,
       regForm.value.department
     )
     ElMessage.success('注册成功')
@@ -202,6 +215,10 @@ async function handleRegister() {
   font-size: 11px;
   color: var(--ink-3);
   margin-bottom: 5px;
+}
+
+.opt {
+  color: var(--ink-4);
 }
 
 .submit {
