@@ -13,7 +13,10 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # 登录名：英文标识，唯一，用于登录
     username = Column(String(100), unique=True, nullable=False, index=True)
+    # 显示名：中文姓名，界面展示用，留空则回退到 username
+    display_name = Column(String(100))
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), default="user", nullable=False)  # admin / user
     department = Column(String(100))
