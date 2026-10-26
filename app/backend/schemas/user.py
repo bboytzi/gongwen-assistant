@@ -20,10 +20,36 @@ class UserResponse(BaseModel):
     username: str
     role: str
     department: Optional[str]
+    is_active: bool = True
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class AdminUserCreate(BaseModel):
+    username: str
+    password: str
+    department: Optional[str] = None
+    role: str = "user"
+
+
+class AdminUserUpdate(BaseModel):
+    username: Optional[str] = None
+    department: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+    password: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    username: Optional[str] = None
+    department: Optional[str] = None
+
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str
 
 
 class TokenResponse(BaseModel):
