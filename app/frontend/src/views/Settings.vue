@@ -1,101 +1,157 @@
 <template>
-  <div style="padding: 24px;">
-    <div style="margin-bottom: 24px;">
-      <h2 style="margin: 0; font-size: 18px;">设置</h2>
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <div class="crumb">资源 / 设置</div>
+        <h1 class="page-title">模型设置</h1>
+        <div class="page-sub">配置对话与向量模型，生成和检索都依赖这里的激活配置</div>
+      </div>
     </div>
-    <el-row :gutter="24">
-      <el-col :span="10">
-        <el-card shadow="never">
-          <div style="font-weight: 600; margin-bottom: 16px;">LLM 配置列表</div>
-          <div v-for="c in configs" :key="c.id" style="padding: 12px; border: 1px solid #e4e4e7; border-radius: 8px; margin-bottom: 8px; cursor: pointer;"
-            :style="{ borderColor: c.is_active ? '#534ab7' : '#e4e4e7', background: c.is_active ? '#eeedfe' : '#fff' }"
+
+    <div class="layout">
+      <div class="list-col">
+        <div class="card card-pad">
+          <div class="card-title">配置列表</div>
+
+          <div
+            v-for="c in configs"
+            :key="c.id"
+            class="cfg"
+            :class="{ active: c.is_active, editing: editing?.id === c.id }"
             @click="selectConfig(c)"
           >
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 500; font-size: 14px;">{{ c.name }}</span>
-              <el-tag v-if="c.is_active" type="success" size="small">已激活</el-tag>
+            <div class="cfg-head">
+              <span class="cfg-name">{{ c.name }}</span>
+              <span v-if="c.is_active" class="cfg-badge">已激活</span>
             </div>
-            <div style="font-size: 12px; color: #888; margin-top: 4px;">{{ c.provider }} · {{ c.chat_model }}</div>
+            <div class="cfg-meta">{{ providerLabel(c.provider) }}</div>
+            <div class="cfg-meta">对话 {{ c.chat_model }}</div>
+            <div class="cfg-meta">
+              向量 {{ c.embedding_model || '未配置' }}
+              <span v-if="c.has_embedding_key" class="cfg-key">独立 Key</span>
+            </div>
           </div>
-          <el-button style="width: 100%; margin-top: 8px;" @click="showForm = true; editing = null">+ 新增配置</el-button>
-        </el-card>
-      </el-col>
-      <el-col :span="14">
-        <el-card shadow="never">
-          <div style="font-weight: 600; margin-bottom: 16px;">{{ editing ? '编辑配置' : '新增配置' }}</div>
-          <el-form v-if="showForm" :model="form" label-width="110px">
-            <el-form-item label="配置名称"><el-input v-model="form.name" placeholder="TokenHub-DeepSeek" /></el-form-item>
-            <el-form-item label="Provider">
-              <el-select v-model="form.provider" style="width: 100%;" @change="onProviderChange">
-                <el-option label="腾讯云 TokenHub" value="tokenhub" />
-                <el-option label="DeepSeek" value="deepseek" />
-                <el-option label="通义千问" value="qwen" />
-                <el-option label="智谱GLM" value="zhipu" />
-                <el-option label="自定义" value="custom" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="API地址">
-              <el-input v-model="form.api_url" placeholder="https://tokenhub-intl.tencentcloudmaas.com/plan/v3" />
-              <div class="field-hint">对话接口。填 base 或完整地址均可，系统会自动补全 /chat/completions</div>
-            </el-form-item>
-            <el-form-item label="API Key"><el-input v-model="form.api_key" type="password" show-password placeholder="sk-..." /></el-form-item>
-            <el-form-item label="对话模型"><el-input v-model="form.chat_model" placeholder="deepseek/deepseek-flash" /></el-form-item>
-            <el-form-item label="Embedding模型">
-              <el-input v-model="form.embedding_model" placeholder="kinfra-text-embedding-0.6b" />
-              <div class="field-hint">留空则不做向量化，检索降级为关键词匹配</div>
-            </el-form-item>
-            <el-form-item label="Embedding地址">
-              <el-input v-model="form.embedding_url" placeholder="https://tokenhub-intl.tencentcloudmaas.com/v1" />
-              <div class="field-hint">向量接口地址。与对话地址不同时必填，留空则复用 API 地址</div>
-            </el-form-item>
-            <el-form-item label="Embedding Key">
-              <el-input
-                v-model="form.embedding_api_key"
-                type="password"
-                show-password
-                :placeholder="editing && editing.has_embedding_key ? '已配置，留空则不修改' : '留空则复用上面的 API Key'"
-              />
-              <div class="field-hint">
-                向量接口与对话接口使用不同 Key 时填写。
-                腾讯云 TokenHub 的 Token Plan Key 只能调 /plan/v3，调 /v1 向量接口需另建一个 Key
-              </div>
-            </el-form-item>
-            <el-form-item>
-              <el-button @click="handleTest" :loading="testing">测试连通性</el-button>
-              <el-button type="primary" @click="handleSave">保存</el-button>
-              <el-button v-if="editing" @click="handleActivate">设为激活</el-button>
-            </el-form-item>
-            <div v-if="testResult" style="margin-top: 8px;">
-              <el-alert
-                :type="testResult.chat_ok ? 'success' : 'error'"
-                :title="`Chat: ${testResult.chat_ok ? 'OK (' + testResult.chat_latency_ms + 'ms)' : testResult.chat_error}`"
-                :closable="false" style="margin-bottom: 8px;"
-              />
-              <div v-if="testResult.resolved_chat_url" class="url-echo">
-                实际请求 {{ testResult.resolved_chat_url }}
-              </div>
-              <el-alert
-                v-if="testResult.embedding_ok !== undefined"
-                :type="testResult.embedding_ok ? 'success' : (testResult.embedding_dim ? 'warning' : 'info')"
-                :title="`Embedding: ${testResult.embedding_ok ? 'OK (' + testResult.embedding_latency_ms + 'ms' + (testResult.embedding_dim ? ', ' + testResult.embedding_dim + ' 维' : '') + ')' : testResult.embedding_error}`"
-                :closable="false"
-              />
-              <div v-if="testResult.resolved_embedding_url" class="url-echo">
-                实际请求 {{ testResult.resolved_embedding_url }}
-              </div>
+
+          <div v-if="configs.length === 0" class="cfg-empty">还没有配置</div>
+
+          <el-button class="add-btn" @click="startCreate">新增配置</el-button>
+        </div>
+      </div>
+
+      <div class="form-col">
+        <div v-if="!showForm" class="card card-pad placeholder">
+          <div class="placeholder-title">选择左侧配置进行编辑</div>
+          <div class="placeholder-sub">或点击「新增配置」开始</div>
+        </div>
+
+        <div v-else class="card card-pad">
+          <div class="card-title">{{ editing ? '编辑配置' : '新增配置' }}</div>
+
+          <div class="field">
+            <label>配置名称</label>
+            <el-input v-model="form.name" placeholder="阿里云百炼" />
+          </div>
+
+          <div class="field">
+            <label>服务商</label>
+            <el-select v-model="form.provider" style="width: 100%" @change="onProviderChange">
+              <el-option label="阿里云百炼" value="qwen" />
+              <el-option label="腾讯云 TokenHub" value="tokenhub" />
+              <el-option label="DeepSeek" value="deepseek" />
+              <el-option label="智谱 GLM" value="zhipu" />
+              <el-option label="自定义" value="custom" />
+            </el-select>
+            <div class="hint">切换服务商会自动填入该家的默认地址与模型名</div>
+          </div>
+
+          <div class="field">
+            <label>API 地址</label>
+            <el-input v-model="form.api_url" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
+            <div class="hint">填 base 或完整接口地址均可，系统自动补全 /chat/completions</div>
+          </div>
+
+          <div class="field">
+            <label>API Key</label>
+            <el-input
+              v-model="form.api_key"
+              type="password"
+              show-password
+              :placeholder="editing ? '已配置，留空则不修改' : 'sk-...'"
+            />
+          </div>
+
+          <div class="field">
+            <label>对话模型</label>
+            <el-input v-model="form.chat_model" placeholder="qwen-plus" />
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="field">
+            <label>Embedding 模型</label>
+            <el-input v-model="form.embedding_model" placeholder="text-embedding-v4" />
+            <div class="hint">留空则不做向量化，检索降级为关键词匹配</div>
+          </div>
+
+          <div class="field">
+            <label>Embedding 地址</label>
+            <el-input v-model="form.embedding_url" placeholder="留空则复用 API 地址" />
+            <div class="hint">向量接口与对话接口不同源时填写</div>
+          </div>
+
+          <div class="field">
+            <label>Embedding Key</label>
+            <el-input
+              v-model="form.embedding_api_key"
+              type="password"
+              show-password
+              :placeholder="editing && editing.has_embedding_key ? '已配置，留空则不修改' : '留空则复用上面的 API Key'"
+            />
+            <div class="hint">腾讯云 TokenHub 的套餐 Key 不能调向量接口，需另填</div>
+          </div>
+
+          <div class="actions">
+            <el-button @click="handleTest" :loading="testing">测试连通性</el-button>
+            <el-button type="primary" @click="handleSave">保存</el-button>
+            <el-button v-if="editing && !editing.is_active" @click="handleActivate">设为激活</el-button>
+            <el-button v-if="editing" class="del" @click="handleDelete">删除</el-button>
+          </div>
+
+          <div v-if="testResult" class="result">
+            <div class="res-line" :style="resStyle(testResult.chat_ok)">
+              <span class="res-tag">{{ testResult.chat_ok ? '对话正常' : '对话失败' }}</span>
+              <span class="res-text">
+                {{ testResult.chat_ok
+                  ? `${testResult.chat_latency_ms} ms`
+                  : testResult.chat_error }}
+              </span>
             </div>
-          </el-form>
-          <div v-else style="color: #888; text-align: center; padding: 40px;">点击「新增配置」或选择已有配置</div>
-        </el-card>
-      </el-col>
-    </el-row>
+            <div v-if="testResult.resolved_chat_url" class="res-url">{{ testResult.resolved_chat_url }}</div>
+
+            <div
+              v-if="testResult.embedding_ok !== undefined"
+              class="res-line"
+              :style="resStyle(testResult.embedding_ok)"
+            >
+              <span class="res-tag">{{ testResult.embedding_ok ? '向量正常' : '向量不可用' }}</span>
+              <span class="res-text">
+                {{ testResult.embedding_ok
+                  ? `${testResult.embedding_latency_ms} ms · ${testResult.embedding_dim} 维`
+                  : testResult.embedding_error }}
+              </span>
+            </div>
+            <div v-if="testResult.resolved_embedding_url" class="res-url">{{ testResult.resolved_embedding_url }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '../api'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const configs = ref([])
 const showForm = ref(false)
@@ -106,7 +162,7 @@ const providerDefaults = ref({})
 
 const form = ref({
   name: '',
-  provider: 'tokenhub',
+  provider: 'qwen',
   api_url: '',
   api_key: '',
   chat_model: '',
@@ -114,6 +170,18 @@ const form = ref({
   embedding_url: '',
   embedding_api_key: '',
 })
+
+const PROVIDER_LABELS = {
+  qwen: '阿里云百炼',
+  tokenhub: '腾讯云 TokenHub',
+  deepseek: 'DeepSeek',
+  zhipu: '智谱 GLM',
+  custom: '自定义',
+}
+
+function providerLabel(p) {
+  return PROVIDER_LABELS[p] || p
+}
 
 onMounted(async () => {
   await loadConfigs()
@@ -129,6 +197,31 @@ async function loadConfigs() {
   configs.value = await api.get('/llm/configs')
 }
 
+function startCreate() {
+  editing.value = null
+  showForm.value = true
+  testResult.value = null
+  form.value = {
+    name: '',
+    provider: 'qwen',
+    api_url: '',
+    api_key: '',
+    chat_model: '',
+    embedding_model: '',
+    embedding_url: '',
+    embedding_api_key: '',
+  }
+  onProviderChange('qwen')
+}
+
+function selectConfig(c) {
+  editing.value = c
+  showForm.value = true
+  testResult.value = null
+  // 两个 Key 都不回显明文，留空表示不修改
+  form.value = { ...c, api_key: '', embedding_api_key: '' }
+}
+
 function onProviderChange(provider) {
   const d = providerDefaults.value[provider]
   if (!d) return
@@ -138,19 +231,10 @@ function onProviderChange(provider) {
   form.value.embedding_url = d.embedding_url || ''
 }
 
-function selectConfig(c) {
-  editing.value = c
-  showForm.value = true
-  // 两个 Key 都不回显明文，留空表示不修改
-  form.value = { ...c, api_key: '', embedding_api_key: '' }
-}
-
 async function handleTest() {
   testing.value = true
   testResult.value = null
   try {
-    // 带上 config_id：编辑已有配置时前端不回显明文 Key，
-    // 后端据此回退到数据库里已存的 Key，避免用空 Key 发测试请求
     const payload = { ...form.value, config_id: editing.value?.id || null }
     if (!payload.api_key) delete payload.api_key
     if (!payload.embedding_api_key) delete payload.embedding_api_key
@@ -162,44 +246,219 @@ async function handleTest() {
 
 async function handleSave() {
   const payload = { ...form.value }
-  // 编辑时若未重新填写，不提交这些字段，否则会把已存的 Key 覆盖成空串
-  if (editing.value && !payload.api_key) {
-    delete payload.api_key
-  }
-  if (editing.value && !payload.embedding_api_key) {
-    delete payload.embedding_api_key
-  }
-  if (editing.value) {
-    await api.put(`/llm/configs/${editing.value.id}`, payload)
-  } else {
-    await api.post('/llm/configs', payload)
-  }
-  ElMessage.success('保存成功')
-  await loadConfigs()
-  showForm.value = false
+  if (editing.value && !payload.api_key) delete payload.api_key
+  if (editing.value && !payload.embedding_api_key) delete payload.embedding_api_key
+
+  try {
+    if (editing.value) {
+      await api.put(`/llm/configs/${editing.value.id}`, payload)
+    } else {
+      await api.post('/llm/configs', payload)
+    }
+    ElMessage.success('保存成功')
+    await loadConfigs()
+    showForm.value = false
+    editing.value = null
+  } catch { /* 拦截器已提示 */ }
 }
 
 async function handleActivate() {
   if (!editing.value) return
-  await api.put(`/llm/configs/${editing.value.id}`, { is_active: true })
-  ElMessage.success('已激活')
-  await loadConfigs()
+  try {
+    await api.put(`/llm/configs/${editing.value.id}`, { is_active: true })
+    ElMessage.success('已激活')
+    await loadConfigs()
+  } catch { /* 拦截器已提示 */ }
+}
+
+async function handleDelete() {
+  try {
+    await ElMessageBox.confirm(`确认删除配置「${editing.value.name}」？`, '删除配置', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await api.delete(`/llm/configs/${editing.value.id}`)
+    ElMessage.success('已删除')
+    showForm.value = false
+    editing.value = null
+    await loadConfigs()
+  } catch { /* 拦截器已提示 */ }
+}
+
+function resStyle(ok) {
+  return ok
+    ? { color: 'var(--ok)', background: 'var(--ok-soft)' }
+    : { color: 'var(--err)', background: 'var(--err-soft)' }
 }
 </script>
 
 <style scoped>
-.field-hint {
-  font-size: 11px;
-  color: #999;
-  line-height: 1.5;
-  margin-top: 2px;
+.layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
 }
 
-.url-echo {
+.list-col {
+  width: 252px;
+  flex-shrink: 0;
+}
+
+.form-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-title {
+  margin-bottom: 12px;
+}
+
+.cfg {
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  background: var(--paper-3);
+  transition: border-color 0.15s;
+}
+
+.cfg:hover {
+  border-color: var(--gold-line);
+}
+
+.cfg.active {
+  border-color: var(--seal-line);
+  background: var(--seal-soft);
+}
+
+.cfg.editing {
+  border-color: var(--gold);
+}
+
+.cfg-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.cfg-name {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.cfg-badge {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--ok);
+  background: var(--ok-soft);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+.cfg-meta {
   font-size: 11px;
-  color: #999;
+  color: var(--ink-4);
+  line-height: 1.7;
+}
+
+.cfg-key {
+  color: var(--warn);
+  margin-left: 4px;
+}
+
+.cfg-empty {
+  font-size: 12px;
+  color: var(--ink-4);
+  padding: 10px 0;
+}
+
+.add-btn {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.placeholder {
+  padding: 44px 20px;
+  text-align: center;
+}
+
+.placeholder-title {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.placeholder-sub {
+  font-size: 11px;
+  color: var(--ink-4);
+  margin-top: 5px;
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.field label {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-bottom: 5px;
+}
+
+.divider {
+  height: 1px;
+  background: var(--line-2);
+  margin: 16px 0 14px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.del {
+  margin-left: auto;
+  color: var(--ink-3) !important;
+}
+
+.result {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 0.5px solid var(--line-2);
+}
+
+.res-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  margin-bottom: 5px;
+}
+
+.res-tag {
+  font-size: 11px;
+  white-space: nowrap;
+  padding-top: 1px;
+}
+
+.res-text {
+  font-size: 11px;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.res-url {
+  font-size: 10px;
+  color: var(--ink-4);
   font-family: monospace;
   word-break: break-all;
-  margin: -4px 0 8px 0;
+  padding: 0 2px 8px;
 }
 </style>
