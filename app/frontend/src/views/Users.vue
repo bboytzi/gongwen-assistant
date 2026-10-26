@@ -13,10 +13,13 @@
 
     <div class="card list">
       <el-table :data="users" v-loading="loading" style="width: 100%">
-        <el-table-column prop="username" label="用户名" min-width="140">
+        <el-table-column label="用户" min-width="176">
           <template #default="{ row }">
-            <span class="uname">{{ row.username }}</span>
-            <span v-if="row.id === me?.id" class="self-tag">本人</span>
+            <div class="uname">
+              {{ row.display_name || row.username }}
+              <span v-if="row.id === me?.id" class="self-tag">本人</span>
+            </div>
+            <div class="ulogin">{{ row.username }}</div>
           </template>
         </el-table-column>
 
@@ -63,10 +66,16 @@
       </el-table>
     </div>
 
-    <el-dialog v-model="editVisible" :title="editMode === 'create' ? '新增用户' : '编辑用户'" width="440px">
+    <el-dialog v-model="editVisible" :title="editMode === 'create' ? '新增用户' : '编辑用户'" width="460px">
       <div class="field">
-        <label>用户名</label>
-        <el-input v-model="editForm.username" placeholder="登录名" />
+        <label>登录名 <span class="req">英文</span></label>
+        <el-input v-model="editForm.username" placeholder="zhangsan" />
+        <div class="hint">用于登录，建议用拼音或工号</div>
+      </div>
+      <div class="field">
+        <label>显示名 <span class="opt">中文</span></label>
+        <el-input v-model="editForm.display_name" placeholder="张三" />
+        <div class="hint">界面展示用，留空则显示登录名</div>
       </div>
       <div class="field">
         <label>部门</label>
@@ -122,7 +131,14 @@ const saving = ref(false)
 
 const editVisible = ref(false)
 const editMode = ref('create')
-const editForm = ref({ id: null, username: '', department: '', role: 'user', password: '' })
+const editForm = ref({
+  id: null,
+  username: '',
+  display_name: '',
+  department: '',
+  role: 'user',
+  password: '',
+})
 
 const resetVisible = ref(false)
 const resetTarget = ref(null)
@@ -158,7 +174,14 @@ async function load() {
 
 function openCreate() {
   editMode.value = 'create'
-  editForm.value = { id: null, username: '', department: '', role: 'user', password: '' }
+  editForm.value = {
+    id: null,
+    username: '',
+    display_name: '',
+    department: '',
+    role: 'user',
+    password: '',
+  }
   editVisible.value = true
 }
 
@@ -167,6 +190,7 @@ function openEdit(row) {
   editForm.value = {
     id: row.id,
     username: row.username,
+    display_name: row.display_name || '',
     department: row.department || '',
     role: row.role,
     password: '',
@@ -176,7 +200,11 @@ function openEdit(row) {
 
 async function submitEdit() {
   if (!editForm.value.username.trim()) {
-    ElMessage.warning('请填写用户名')
+    ElMessage.warning('请填写登录名')
+    return
+  }
+  if (!/^[A-Za-z0-9_.-]+$/.test(editForm.value.username.trim())) {
+    ElMessage.warning('登录名只能包含字母、数字、下划线、点和短横线')
     return
   }
   if (editMode.value === 'create' && (editForm.value.password || '').length < 6) {
@@ -186,20 +214,17 @@ async function submitEdit() {
 
   saving.value = true
   try {
+    const payload = {
+      username: editForm.value.username.trim(),
+      display_name: editForm.value.display_name.trim() || null,
+      department: editForm.value.department || null,
+      role: editForm.value.role,
+    }
     if (editMode.value === 'create') {
-      await api.post('/users', {
-        username: editForm.value.username,
-        password: editForm.value.password,
-        department: editForm.value.department || null,
-        role: editForm.value.role,
-      })
+      await api.post('/users', { ...payload, password: editForm.value.password })
       ElMessage.success('用户已创建')
     } else {
-      await api.put(`/users/${editForm.value.id}`, {
-        username: editForm.value.username,
-        department: editForm.value.department || null,
-        role: editForm.value.role,
-      })
+      await api.put(`/users/${editForm.value.id}`, payload)
       ElMessage.success('已保存')
       // 改的是自己时刷新本地用户信息
       if (editForm.value.id === me.value?.id) await userStore.fetchMe()
@@ -295,6 +320,20 @@ function formatDate(d) {
 .uname {
   font-size: 13px;
   color: var(--ink);
+}
+
+.ulogin {
+  font-size: 11px;
+  color: var(--ink-4);
+  margin-top: 2px;
+}
+
+.req {
+  color: var(--seal);
+}
+
+.opt {
+  color: var(--ink-4);
 }
 
 .self-tag {
