@@ -25,7 +25,8 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item @click="$router.push('/settings')">设置</el-dropdown-item>
+              <el-dropdown-item @click="$router.push('/profile')">个人资料</el-dropdown-item>
+              <el-dropdown-item v-if="isAdmin" @click="$router.push('/users')">用户管理</el-dropdown-item>
               <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -56,6 +57,10 @@
           <el-menu-item index="/knowledge">
             <el-icon><FolderOpened /></el-icon>
             <span>知识库</span>
+          </el-menu-item>
+          <el-menu-item v-if="isAdmin" index="/users">
+            <el-icon><User /></el-icon>
+            <span>用户管理</span>
           </el-menu-item>
           <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
@@ -92,6 +97,8 @@ const searchRef = ref(null)
 const initial = computed(() =>
   (userStore.user?.username || 'A').charAt(0).toUpperCase()
 )
+
+const isAdmin = computed(() => userStore.user?.role === 'admin')
 
 // 详情页高亮对应的列表项
 const activeMenu = computed(() => {
