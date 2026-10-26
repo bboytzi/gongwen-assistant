@@ -227,11 +227,38 @@ def check_queue():
     try:
         from tasks.celery_app import celery_app
         replies = celery_app.control.ping(timeout=3)
-        if replies:
-            print(f"{OK} Celery worker 在线 {len(replies)} 个")
-        else:
+        if not replies:
             print(f"{FAIL} 没有 Celery worker 响应")
             record("FAIL", "Celery worker 未运行，检查 docker logs claw-worker")
+            return
+
+        print(f"{OK} Celery worker 在线 {len(replies)} 个")
+
+        # 检查 worker 实际注册了哪些业务任务。
+        # 只 ping 通不代表任务可用：tasks/tasks.py 没被 import 时
+        # worker 能响应 ping，但 [tasks] 列表为空，收到任务会报 unregistered，
+        # 表现为「点了生成没反应」，日志里只有一行 ERROR。
+        inspector = celery_app.control.inspect(timeout=3)
+        registered = inspector.registered() or {}
+        all_tasks = set()
+        for task_list in registered.values():
+            all_tasks.update(task_list)
+
+        expected = {
+            "generate_document": "文档生成",
+            "process_kb_document": "知识库文件解析",
+        }
+        missing = [
+            label for needle, label in expected.items()
+            if not any(needle in t for t in all_tasks)
+        ]
+
+        if missing:
+            print(f"{FAIL} worker 未注册任务: {', '.join(missing)}")
+            print(f"       生成和解析会静默失败。检查 tasks/celery_app.py 的 include 配置")
+            record("FAIL", f"Celery 未注册任务: {', '.join(missing)}")
+        else:
+            print(f"{OK} 业务任务已注册（{len(all_tasks)} 个任务）")
     except Exception as e:
         print(f"{WARN} worker 探测失败: {str(e)[:100]}")
 
