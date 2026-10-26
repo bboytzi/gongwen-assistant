@@ -1,11 +1,13 @@
 import os
 import uuid
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
+
 from core.database import get_db
 from core.config import settings
-from core.encryption import decrypt_api_key
-from models.models import User, Document, GenerationTask, LLMConfig, WordTemplate, DocumentVersion
+from models.models import User, Document, GenerationTask, WordTemplate, DocumentVersion
 from schemas.document import DocumentCreate, DocumentResponse, GenerationTaskResponse, ExportRequest
 from api.auth import get_current_user
 from tasks.tasks import generate_document
@@ -13,6 +15,12 @@ from services.word_renderer import TemplateRenderer, extract_placeholders
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
+# 注意：FastAPI 按注册顺序匹配路由。所有固定路径（/export、/templates）
+# 必须写在动态路径（/{doc_id}）之前，否则 "templates" 会被当成 doc_id
+# 送进 UUID 字段查询，PostgreSQL 直接抛类型错误返回 500。
+
+
+# ---------------------------------------------------------------- 集合
 
 @router.get("", response_model=list[DocumentResponse])
 def list_documents(
@@ -55,121 +63,7 @@ def create_document(
     return doc
 
 
-@router.get("/{doc_id}", response_model=DocumentResponse)
-def get_document(
-    doc_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    if doc.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    return doc
-
-
-@router.post("/{doc_id}/generate", response_model=GenerationTaskResponse)
-def start_generation(
-    doc_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    if doc.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    # Cancel any existing running task
-    existing = db.query(GenerationTask).filter(
-        GenerationTask.document_id == doc_id,
-        GenerationTask.status.in_(["running", "pending"]),
-    ).first()
-    if existing:
-        existing.status = "cancelled"
-        db.commit()
-
-    task = GenerationTask(
-        document_id=doc.id,
-        user_id=current_user.id,
-        status="pending",
-        progress=0,
-        current_step="init",
-    )
-    db.add(task)
-    doc.status = "generating"
-    db.commit()
-    db.refresh(task)
-
-    generate_document.delay(str(task.id))
-    return task
-
-
-@router.get("/{doc_id}/task", response_model=GenerationTaskResponse)
-def get_task_status(
-    doc_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    task = db.query(GenerationTask).filter(
-        GenerationTask.document_id == doc_id,
-    ).order_by(GenerationTask.created_at.desc()).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="No generation task found")
-    if task.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    return task
-
-
-@router.put("/{doc_id}/content")
-def update_content(
-    doc_id: str,
-    content: dict,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    doc = db.query(Document).filter(Document.id == doc_id).first()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    if doc.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    # Save version
-    if doc.content:
-        version = DocumentVersion(
-            document_id=doc.id,
-            version_number=doc.version,
-            content=doc.content,
-            change_note="auto-save",
-        )
-        db.add(version)
-        doc.version += 1
-
-    doc.content = content.get("content", "")
-    db.commit()
-    return {"ok": True, "version": doc.version}
-
-
-@router.get("/{doc_id}/versions")
-def list_versions(
-    doc_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    versions = db.query(DocumentVersion).filter(
-        DocumentVersion.document_id == doc_id,
-    ).order_by(DocumentVersion.created_at.desc()).all()
-    return [
-        {
-            "id": str(v.id),
-            "version_number": v.version_number,
-            "change_note": v.change_note,
-            "created_at": v.created_at.isoformat() if v.created_at else None,
-        }
-        for v in versions
-    ]
-
+# ---------------------------------------------------------------- 固定路径
 
 @router.post("/export")
 def export_document(
@@ -270,4 +164,122 @@ def list_templates(
             "is_system": t.is_system,
         }
         for t in system + user_templates
+    ]
+
+
+# ---------------------------------------------------------------- 动态路径
+
+@router.get("/{doc_id}", response_model=DocumentResponse)
+def get_document(
+    doc_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if doc.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return doc
+
+
+@router.post("/{doc_id}/generate", response_model=GenerationTaskResponse)
+def start_generation(
+    doc_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if doc.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Cancel any existing running task
+    existing = db.query(GenerationTask).filter(
+        GenerationTask.document_id == doc_id,
+        GenerationTask.status.in_(["running", "pending"]),
+    ).first()
+    if existing:
+        existing.status = "cancelled"
+        db.commit()
+
+    task = GenerationTask(
+        document_id=doc.id,
+        user_id=current_user.id,
+        status="pending",
+        progress=0,
+        current_step="init",
+    )
+    db.add(task)
+    doc.status = "generating"
+    db.commit()
+    db.refresh(task)
+
+    generate_document.delay(str(task.id))
+    return task
+
+
+@router.get("/{doc_id}/task", response_model=GenerationTaskResponse)
+def get_task_status(
+    doc_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    task = db.query(GenerationTask).filter(
+        GenerationTask.document_id == doc_id,
+    ).order_by(GenerationTask.created_at.desc()).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="No generation task found")
+    if task.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return task
+
+
+@router.put("/{doc_id}/content")
+def update_content(
+    doc_id: UUID,
+    content: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if doc.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Save version
+    if doc.content:
+        version = DocumentVersion(
+            document_id=doc.id,
+            version_number=doc.version,
+            content=doc.content,
+            change_note="auto-save",
+        )
+        db.add(version)
+        doc.version += 1
+
+    doc.content = content.get("content", "")
+    db.commit()
+    return {"ok": True, "version": doc.version}
+
+
+@router.get("/{doc_id}/versions")
+def list_versions(
+    doc_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    versions = db.query(DocumentVersion).filter(
+        DocumentVersion.document_id == doc_id,
+    ).order_by(DocumentVersion.created_at.desc()).all()
+    return [
+        {
+            "id": str(v.id),
+            "version_number": v.version_number,
+            "change_note": v.change_note,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+        }
+        for v in versions
     ]
