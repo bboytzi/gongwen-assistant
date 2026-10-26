@@ -25,9 +25,9 @@
       </el-table-column>
       <el-table-column label="操作" width="200">
         <template #default="{ row }">
-          <el-button v-if="row.status === 'done'" link type="primary" @click="$router.push(`/documents/${row.id}/edit`)">编辑</el-button>
-          <el-button v-if="row.status === 'generating'" link type="warning" @click="$router.push(`/documents/${row.id}/generate`)">查看进度</el-button>
-          <el-button v-if="row.status === 'draft'" link type="primary" @click="$router.push(`/documents/${row.id}/generate`)">生成</el-button>
+          <el-button v-if="row.status === 'done'" link type="primary" @click="go(`/documents/${row.id}/edit`)">编辑</el-button>
+          <el-button v-if="row.status === 'generating'" link type="warning" @click="go(`/documents/${row.id}/generate`)">查看进度</el-button>
+          <el-button v-if="row.status === 'draft'" link type="primary" @click="go(`/documents/${row.id}/generate`)">生成</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -36,9 +36,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../api'
 import dayjs from 'dayjs'
+import { ElMessage } from 'element-plus'
 
+const router = useRouter()
 const documents = ref([])
 const loading = ref(false)
 
@@ -50,6 +53,16 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function go(path) {
+  try {
+    await router.push(path)
+  } catch (e) {
+    // 路由跳转失败（如目标组件 chunk 加载 404）不会抛到这里，
+    // 但导航被守卫拦截或重复导航会，给出可见反馈而不是静默
+    ElMessage.error(`页面跳转失败：${e?.message || e}`)
+  }
+}
 
 function statusType(s) {
   return { draft: 'info', generating: 'warning', done: 'success', failed: 'danger' }[s] || 'info'
