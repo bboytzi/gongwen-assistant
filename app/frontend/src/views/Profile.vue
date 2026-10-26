@@ -15,7 +15,8 @@
         <div class="identity">
           <div class="avatar">{{ initial }}</div>
           <div>
-            <div class="id-name">{{ profile.username || '-' }}</div>
+            <div class="id-name">{{ profile.display_name || profile.username || '-' }}</div>
+            <div class="id-login">登录名 {{ profile.username || '-' }}</div>
             <div class="id-role">
               {{ profile.role === 'admin' ? '管理员' : '普通用户' }}
               <span v-if="profile.department">· {{ profile.department }}</span>
@@ -24,9 +25,15 @@
         </div>
 
         <div class="field">
-          <label>用户名</label>
-          <el-input v-model="profileForm.username" placeholder="登录名" />
-          <div class="hint">修改后下次登录请使用新用户名</div>
+          <label>显示名 <span class="opt">中文，界面展示用</span></label>
+          <el-input v-model="profileForm.display_name" placeholder="张三" />
+          <div class="hint">留空则显示登录名</div>
+        </div>
+
+        <div class="field">
+          <label>登录名 <span class="opt">英文，登录用</span></label>
+          <el-input v-model="profileForm.username" placeholder="zhangsan" />
+          <div class="hint">修改后下次登录请使用新登录名</div>
         </div>
 
         <div class="field">
@@ -78,14 +85,14 @@ import { useUserStore } from '../store/user'
 const userStore = useUserStore()
 
 const profile = ref({})
-const profileForm = ref({ username: '', department: '' })
+const profileForm = ref({ username: '', display_name: '', department: '' })
 const savingProfile = ref(false)
 
 const pwdForm = ref({ old_password: '', new_password: '', confirm: '' })
 const savingPwd = ref(false)
 
 const initial = computed(() =>
-  (profile.value.username || 'A').charAt(0).toUpperCase()
+  (profile.value.display_name || profile.value.username || 'A').charAt(0).toUpperCase()
 )
 
 onMounted(async () => {
@@ -98,6 +105,7 @@ async function load() {
     profile.value = me
     profileForm.value = {
       username: me.username || '',
+      display_name: me.display_name || '',
       department: me.department || '',
     }
   } catch { /* 拦截器已提示 */ }
@@ -105,13 +113,18 @@ async function load() {
 
 async function saveProfile() {
   if (!profileForm.value.username.trim()) {
-    ElMessage.warning('用户名不能为空')
+    ElMessage.warning('登录名不能为空')
+    return
+  }
+  if (!/^[A-Za-z0-9_.-]+$/.test(profileForm.value.username.trim())) {
+    ElMessage.warning('登录名只能包含字母、数字、下划线、点和短横线')
     return
   }
   savingProfile.value = true
   try {
     const updated = await api.put('/users/me', {
-      username: profileForm.value.username,
+      username: profileForm.value.username.trim(),
+      display_name: profileForm.value.display_name.trim() || null,
       department: profileForm.value.department,
     })
     profile.value = updated
@@ -195,10 +208,20 @@ async function savePassword() {
   letter-spacing: 0.5px;
 }
 
+.id-login {
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
 .id-role {
   font-size: 11px;
   color: var(--ink-4);
-  margin-top: 3px;
+  margin-top: 2px;
+}
+
+.opt {
+  color: var(--ink-4);
 }
 
 .field {
