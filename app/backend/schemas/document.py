@@ -21,7 +21,8 @@ class DocumentCreate(BaseModel):
     budget_amount: Optional[float] = None
     source_kb_ids: List[str] = []
     template_id: Optional[str] = None
-    llm_config_id: str
+    # 生成时统一使用当前激活的 LLM 配置，此字段仅为兼容旧调用方保留
+    llm_config_id: Optional[str] = None
 
 
 class DocumentResponse(BaseModel):
