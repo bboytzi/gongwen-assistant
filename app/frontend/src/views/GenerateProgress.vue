@@ -1,45 +1,79 @@
 <template>
-  <div style="padding: 24px;">
-    <div style="margin-bottom: 24px;">
-      <h2 style="margin: 0; font-size: 18px;">生成进度</h2>
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <div class="crumb">工作台 / 生成进度</div>
+        <h1 class="page-title">{{ headTitle }}</h1>
+        <div class="page-sub">{{ headSub }}</div>
+      </div>
+      <div class="head-actions">
+        <el-button
+          v-if="task?.status === 'completed'"
+          type="primary"
+          @click="goEdit"
+        >
+          编辑文档
+        </el-button>
+      </div>
     </div>
-    <el-row :gutter="24">
-      <el-col :span="8">
-        <el-card shadow="never">
-          <div style="margin-bottom: 16px;">
-            <el-progress :percentage="task?.progress || 0" :status="progressStatus" />
+
+    <el-alert
+      v-if="task?.status === 'failed'"
+      type="error"
+      :title="task.error_message || '生成失败'"
+      :closable="false"
+      style="margin-bottom: 14px"
+    />
+
+    <div class="layout">
+      <div class="steps-col card">
+        <div class="ring-wrap">
+          <el-progress
+            type="circle"
+            :percentage="task?.progress || 0"
+            :width="96"
+            :stroke-width="5"
+            :color="ringColor"
+          />
+          <div class="ring-label">{{ currentStepName }}</div>
+        </div>
+
+        <div class="steps">
+          <div
+            v-for="(s, i) in steps"
+            :key="s.key"
+            class="step"
+            :class="stepClass(i)"
+          >
+            <div class="step-mark">
+              <span v-if="i < activeIndex" class="step-done">✓</span>
+              <span v-else class="step-idx">{{ i + 1 }}</span>
+            </div>
+            <div class="step-body">
+              <div class="step-name">{{ s.name }}</div>
+              <div class="step-desc">{{ s.desc }}</div>
+            </div>
           </div>
-          <el-steps direction="vertical" :active="currentStepIndex" process-status="process">
-            <el-step title="意图解析" description="分析请示类型和关键要素" />
-            <el-step title="RAG检索" description="从知识库提取相关条款" />
-            <el-step title="大纲生成" description="生成文档结构" />
-            <el-step title="分段生成" description="逐段生成正文内容" />
-            <el-step title="引用校验" description="验证引用准确性" />
-            <el-step title="Word排版" description="格式化输出" />
-          </el-steps>
-          <div v-if="task?.status === 'failed'" style="margin-top: 16px;">
-            <el-alert type="error" :title="task.error_message || '生成失败'" :closable="false" />
+        </div>
+      </div>
+
+      <div class="content-col">
+        <div class="preview-head">
+          <span class="preview-label">正文预览</span>
+          <span class="preview-note">{{ (task?.result_content || '').length }} 字</span>
+        </div>
+
+        <div class="paper">
+          <div v-if="task?.result_content" class="paper-body">{{ task.result_content }}</div>
+          <div v-else class="paper-wait">
+            <div class="wait-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="wait-text">正在生成，请稍候</div>
           </div>
-        </el-card>
-      </el-col>
-      <el-col :span="16">
-        <el-card shadow="never">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <span style="font-weight: 600;">内容预览</span>
-            <el-button v-if="task?.status === 'completed'" type="primary" @click="router.push(`/documents/${docId}/edit`)">编辑文档</el-button>
-          </div>
-          <div v-if="task?.status === 'completed'" style="white-space: pre-wrap; line-height: 1.8; min-height: 400px;">
-            {{ task.result_content }}
-          </div>
-          <div v-else style="min-height: 400px; display: flex; align-items: center; justify-content: center;">
-            <el-icon class="is-loading" style="font-size: 24px; color: #534ab7;">
-              <Loading />
-            </el-icon>
-            <span style="margin-left: 8px; color: #888;">正在生成中...</span>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -51,42 +85,270 @@ import api from '../api'
 const route = useRoute()
 const router = useRouter()
 const docId = route.params.id
+
 const task = ref(null)
 let ws = null
+let pollTimer = null
 
-const stepMap = { init: 0, intent: 1, rag: 2, outline: 3, generate: 4, validate: 5, format: 6, done: 6 }
-const currentStepIndex = computed(() => stepMap[task.value?.current_step] || 0)
-const progressStatus = computed(() => {
-  if (task.value?.status === 'completed') return 'success'
-  if (task.value?.status === 'failed') return 'exception'
-  return undefined
+const steps = [
+  { key: 'intent', name: '意图解析', desc: '识别请示类型与关键要素' },
+  { key: 'rag', name: '制度检索', desc: '从知识库提取相关条款' },
+  { key: 'outline', name: '大纲生成', desc: '确定公文结构' },
+  { key: 'generate', name: '分段撰写', desc: '逐段生成正文' },
+  { key: 'validate', name: '引用校验', desc: '核对条款号与出处' },
+  { key: 'format', name: '排版输出', desc: '套用公文格式' },
+]
+
+const stepMap = {
+  init: 0, intent: 1, rag: 2, outline: 3,
+  generate: 4, validate: 5, format: 6, done: 6,
+}
+
+const activeIndex = computed(() => stepMap[task.value?.current_step] ?? 0)
+
+const currentStepName = computed(() => {
+  const idx = activeIndex.value
+  if (task.value?.status === 'completed') return '已完成'
+  if (task.value?.status === 'failed') return '已中断'
+  return steps[Math.min(idx, steps.length - 1)]?.name || '准备中'
 })
 
+const headTitle = computed(() => {
+  if (task.value?.status === 'completed') return '生成完成'
+  if (task.value?.status === 'failed') return '生成失败'
+  return '正在生成'
+})
+
+const headSub = computed(() => {
+  if (task.value?.status === 'completed') return '可直接编辑，或导出为 Word'
+  if (task.value?.status === 'failed') return '请查看下方错误信息后重试'
+  return '共六个步骤，通常 30 至 60 秒'
+})
+
+const ringColor = computed(() => {
+  if (task.value?.status === 'failed') return '#a63a2e'
+  if (task.value?.status === 'completed') return '#0f6e56'
+  return '#c9a227'
+})
+
+function stepClass(i) {
+  const idx = activeIndex.value
+  const status = task.value?.status
+  if (status === 'completed') return 'is-done'
+  if (i < idx) return 'is-done'
+  if (i === idx && status !== 'failed') return 'is-active'
+  return ''
+}
+
 onMounted(async () => {
-  // Fetch initial task status
-  task.value = await api.get(`/documents/${docId}/task`)
-  // Connect WebSocket for live updates
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/ws/generation/${task.value.id}`
-  ws = new WebSocket(wsUrl)
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data)
-    task.value = { ...task.value, ...data }
+  try {
+    task.value = await api.get(`/documents/${docId}/task`)
+  } catch {
+    return
   }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  ws = new WebSocket(`${protocol}//${window.location.host}/ws/generation/${task.value.id}`)
+
+  ws.onmessage = (event) => {
+    try {
+      task.value = { ...task.value, ...JSON.parse(event.data) }
+    } catch { /* 忽略非法帧 */ }
+  }
+
   ws.onclose = () => {
-    // Fallback: poll API every 2s
-    pollInterval = setInterval(async () => {
-      task.value = await api.get(`/documents/${docId}/task`)
-      if (['completed', 'failed', 'cancelled'].includes(task.value.status)) {
-        clearInterval(pollInterval)
-      }
+    pollTimer = setInterval(async () => {
+      try {
+        task.value = await api.get(`/documents/${docId}/task`)
+        if (['completed', 'failed', 'cancelled'].includes(task.value.status)) {
+          clearInterval(pollTimer)
+        }
+      } catch { /* 重试下一轮 */ }
     }, 2000)
   }
 })
 
-let pollInterval
 onUnmounted(() => {
   if (ws) ws.close()
-  if (pollInterval) clearInterval(pollInterval)
+  if (pollTimer) clearInterval(pollTimer)
 })
+
+function goEdit() {
+  router.push(`/documents/${docId}/edit`)
+}
 </script>
+
+<style scoped>
+.head-actions {
+  margin-left: auto;
+}
+
+.layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.steps-col {
+  width: 268px;
+  flex-shrink: 0;
+  padding: 20px 18px;
+}
+
+.ring-wrap {
+  text-align: center;
+  padding-bottom: 18px;
+  border-bottom: 0.5px solid var(--line-2);
+  margin-bottom: 16px;
+}
+
+.ring-label {
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-top: 10px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.step {
+  display: flex;
+  gap: 10px;
+  padding: 7px 6px;
+  border-radius: var(--r-sm);
+}
+
+.step.is-active {
+  background: var(--seal-soft);
+}
+
+.step-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--ink-4);
+  margin-top: 1px;
+}
+
+.step.is-done .step-mark {
+  border-color: var(--ok);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.step.is-active .step-mark {
+  border-color: var(--seal);
+  color: var(--seal);
+}
+
+.step-done {
+  font-size: 10px;
+}
+
+.step-name {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.step.is-active .step-name {
+  color: var(--seal);
+}
+
+.step.is-done .step-name {
+  color: var(--ink);
+}
+
+.step-desc {
+  font-size: 10px;
+  color: var(--ink-4);
+  margin-top: 1px;
+}
+
+.content-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.preview-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 9px;
+}
+
+.preview-label {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.preview-note {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--ink-4);
+}
+
+.paper {
+  background: #ffffff;
+  border: 0.5px solid var(--line);
+  border-radius: 2px;
+  padding: 32px 40px;
+  min-height: 520px;
+}
+
+.paper-body {
+  font-family: "FangSong", "STFangsong", "SimSun", var(--font-serif);
+  font-size: 13.5px;
+  line-height: 2.1;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.paper-wait {
+  height: 456px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.wait-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.wait-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: pulse 1.2s infinite ease-in-out;
+}
+
+.wait-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.wait-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.wait-text {
+  font-size: 12px;
+  color: var(--ink-4);
+}
+</style>
