@@ -12,6 +12,7 @@ from schemas.document import DocumentCreate, DocumentResponse, GenerationTaskRes
 from api.auth import get_current_user
 from tasks.tasks import generate_document
 from services.word_renderer import TemplateRenderer, extract_placeholders
+from services.citations import build_citations
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -202,6 +203,40 @@ def get_document(
     if doc.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     return doc
+
+
+@router.get("/{doc_id}/citations")
+def get_citations(
+    doc_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """逐句溯源：把正文切成句子，与生成时检索到的材料做匹配。"""
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if doc.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    task = db.query(GenerationTask).filter(
+        GenerationTask.document_id == doc_id
+    ).order_by(GenerationTask.created_at.desc()).first()
+
+    references = (task.references or []) if task else []
+
+    result = build_citations(doc.content or "", references)
+    result["references"] = [
+        {
+            "index": i,
+            "title": r.get("title", ""),
+            "content": (r.get("content") or "")[:400],
+            "doc_type": r.get("doc_type", ""),
+            "source": r.get("source"),
+            "score": r.get("score", 0),
+        }
+        for i, r in enumerate(references)
+    ]
+    return result
 
 
 @router.post("/{doc_id}/generate", response_model=GenerationTaskResponse)
