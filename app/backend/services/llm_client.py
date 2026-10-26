@@ -16,7 +16,7 @@ PROVIDER_DEFAULTS = {
     "qwen": {
         "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "chat_model": "qwen-plus",
-        "embedding_model": "text-embedding-v3",
+        "embedding_model": "text-embedding-v4",
         "embedding_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
     },
     "zhipu": {
