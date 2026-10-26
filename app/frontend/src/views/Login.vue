@@ -1,75 +1,226 @@
 <template>
-  <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: #f5f5f5;">
-    <el-card style="width: 400px;" shadow="never">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <h2 style="margin: 0; font-size: 18px; font-weight: 600;">天府数产公文辅助系统</h2>
-        <p style="color: #888; font-size: 13px; margin: 8px 0 0;">请示材料自动生成 · 检索 · 知识库</p>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="brand">
+        <Logo :size="52" />
+        <div class="brand-name">天府数产公文辅助系统</div>
+        <div class="brand-sub">请示材料自动生成 · 制度检索 · 知识库</div>
       </div>
-      <el-tabs v-model="activeTab">
-        <el-tab-pane label="登录" name="login">
-          <el-form @submit.prevent="handleLogin">
-            <el-form-item>
-              <el-input v-model="loginForm.username" placeholder="用户名" prefix-icon="User" />
-            </el-form-item>
-            <el-form-item>
-              <el-input v-model="loginForm.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
-            </el-form-item>
-            <el-button type="primary" style="width: 100%;" :loading="loading" @click="handleLogin">登录</el-button>
-          </el-form>
-        </el-tab-pane>
-        <el-tab-pane label="注册" name="register">
-          <el-form @submit.prevent="handleRegister">
-            <el-form-item>
-              <el-input v-model="regForm.username" placeholder="用户名" prefix-icon="User" />
-            </el-form-item>
-            <el-form-item>
-              <el-input v-model="regForm.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
-            </el-form-item>
-            <el-form-item>
-              <el-input v-model="regForm.department" placeholder="部门（可选）" prefix-icon="OfficeBuilding" />
-            </el-form-item>
-            <el-button type="primary" style="width: 100%;" :loading="loading" @click="handleRegister">注册</el-button>
-          </el-form>
-        </el-tab-pane>
-      </el-tabs>
-    </el-card>
+
+      <div class="tabs">
+        <span
+          class="tab"
+          :class="{ active: activeTab === 'login' }"
+          @click="activeTab = 'login'"
+        >登录</span>
+        <span
+          class="tab"
+          :class="{ active: activeTab === 'register' }"
+          @click="activeTab = 'register'"
+        >注册</span>
+      </div>
+
+      <div v-if="activeTab === 'login'" class="form">
+        <div class="field">
+          <label>用户名</label>
+          <el-input v-model="loginForm.username" placeholder="请输入用户名" @keyup.enter="handleLogin" />
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <el-input
+            v-model="loginForm.password"
+            type="password"
+            show-password
+            placeholder="请输入密码"
+            @keyup.enter="handleLogin"
+          />
+        </div>
+        <el-button type="primary" class="submit" :loading="loading" @click="handleLogin">
+          登 录
+        </el-button>
+      </div>
+
+      <div v-else class="form">
+        <div class="field">
+          <label>用户名</label>
+          <el-input v-model="regForm.username" placeholder="设置用户名" />
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <el-input v-model="regForm.password" type="password" show-password placeholder="设置密码" />
+        </div>
+        <div class="field">
+          <label>部门</label>
+          <el-input v-model="regForm.department" placeholder="选填" />
+        </div>
+        <el-button type="primary" class="submit" :loading="loading" @click="handleRegister">
+          注 册
+        </el-button>
+      </div>
+
+      <div class="foot-line"></div>
+      <div class="foot-text">成都天府新区数字产业有限公司</div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '../store/user'
 import { ElMessage } from 'element-plus'
+import { useUserStore } from '../store/user'
+import Logo from '../components/Logo.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+
 const activeTab = ref('login')
 const loading = ref(false)
 const loginForm = ref({ username: '', password: '' })
 const regForm = ref({ username: '', password: '', department: '' })
 
 async function handleLogin() {
+  if (!loginForm.value.username || !loginForm.value.password) {
+    ElMessage.warning('请输入用户名和密码')
+    return
+  }
   loading.value = true
   try {
     await userStore.login(loginForm.value.username, loginForm.value.password)
-    ElMessage.success('登录成功')
     router.push('/')
   } catch {
+    // 拦截器已提示
   } finally {
     loading.value = false
   }
 }
 
 async function handleRegister() {
+  if (!regForm.value.username || !regForm.value.password) {
+    ElMessage.warning('请输入用户名和密码')
+    return
+  }
   loading.value = true
   try {
-    await userStore.register(regForm.value.username, regForm.value.password, regForm.value.department)
+    await userStore.register(
+      regForm.value.username,
+      regForm.value.password,
+      regForm.value.department
+    )
     ElMessage.success('注册成功')
     router.push('/')
   } catch {
+    // 拦截器已提示
   } finally {
     loading.value = false
   }
 }
 </script>
+
+<style scoped>
+.login-wrap {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  position: relative;
+}
+
+.login-wrap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--line-2) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-2) 1px, transparent 1px);
+  background-size: 44px 44px;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.login-card {
+  position: relative;
+  width: 372px;
+  background: var(--card);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 34px 34px 22px;
+}
+
+.brand {
+  text-align: center;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.brand-name {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: 1.5px;
+  margin-top: 13px;
+}
+
+.brand-sub {
+  font-size: 11px;
+  color: var(--ink-4);
+  margin-top: 6px;
+  letter-spacing: 0.5px;
+}
+
+.tabs {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.tab {
+  font-size: 13px;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid transparent;
+}
+
+.tab.active {
+  color: var(--seal);
+  border-bottom-color: var(--seal);
+}
+
+.field {
+  margin-bottom: 13px;
+}
+
+.field label {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-bottom: 5px;
+}
+
+.submit {
+  width: 100%;
+  height: 36px;
+  margin-top: 8px;
+  letter-spacing: 4px;
+}
+
+.foot-line {
+  height: 1px;
+  background: var(--line-2);
+  margin: 22px 0 12px;
+}
+
+.foot-text {
+  text-align: center;
+  font-size: 10px;
+  color: var(--ink-4);
+  letter-spacing: 0.5px;
+}
+</style>
