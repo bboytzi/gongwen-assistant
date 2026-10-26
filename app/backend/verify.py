@@ -111,7 +111,9 @@ def check_accounts(db):
     print(f"{INFO} 账号总数 {len(users)}，管理员 {len(admins)}")
     for u in users:
         flag = "admin" if u.role == "admin" else "user"
-        print(f"        - {u.username} ({flag}) {u.department or ''}")
+        label = u.display_name or u.username
+        state = "" if getattr(u, "is_active", True) else " [已停用]"
+        print(f"        - {label} ({u.username}, {flag}) {u.department or ''}{state}")
 
     if not admins:
         print(f"{FAIL} 没有管理员账号，无法上传公司级管理办法")
