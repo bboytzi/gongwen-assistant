@@ -17,6 +17,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), default="user", nullable=False)  # admin / user
     department = Column(String(100))
+    # 停用后无法登录，但保留其历史文档与知识库关联
+    is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     documents = relationship("Document", back_populates="user")
