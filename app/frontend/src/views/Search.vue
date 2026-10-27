@@ -4,7 +4,7 @@
       <div>
         <div class="crumb">工作台 / 检索中心</div>
         <h1 class="page-title">检索中心</h1>
-        <div class="page-sub">按语义或关键词查找制度条款与历史请示</div>
+        <div class="page-sub">按语义或关键词查找制度条款与历史公文</div>
       </div>
     </div>
 
@@ -61,7 +61,7 @@
           <div v-for="(r, i) in results" :key="i" class="result card">
             <div class="result-head">
               <span class="result-type" :style="typeStyle(r.doc_type)">
-                {{ r.doc_type === 'regulation' ? '管理办法' : '历史请示' }}
+                {{ r.doc_type === 'regulation' ? '管理办法' : '历史公文' }}
               </span>
               <span class="result-title">{{ r.title }}</span>
               <span class="result-score">{{ Math.round((r.score || 0) * 100) }}%</span>
@@ -95,7 +95,7 @@ const allKbs = computed(() => [...companyKbs.value, ...personalKbs.value])
 
 const docTypes = [
   { label: '管理办法', value: 'regulation' },
-  { label: '请示材料', value: 'case' },
+  { label: '公文材料', value: 'case' },
   { label: '模板', value: 'template' },
 ]
 
