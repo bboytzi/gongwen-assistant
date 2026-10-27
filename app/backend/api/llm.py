@@ -8,7 +8,7 @@ from services.llm_client import LLMClient
 from api.auth import get_current_user
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
-PROVIDERS = ["deepseek", "qwen", "zhipu", "tokenhub", "custom"]
+PROVIDERS = ["deepseek", "qwen", "zhipu", "tokenhub", "tokenhub_pay", "custom"]
 
 
 @router.get("/providers")
