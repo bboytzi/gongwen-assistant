@@ -2,8 +2,8 @@
   <div class="page" v-loading="loading">
     <div class="editor-head">
       <div>
-        <div class="crumb">工作台 / 编辑请示</div>
-        <h1 class="page-title">{{ doc?.title || '编辑请示' }}</h1>
+        <div class="crumb">工作台 / 编辑公文</div>
+        <h1 class="page-title">{{ doc?.title || '编辑公文' }}</h1>
         <div class="page-sub">{{ subline }}</div>
       </div>
       <div class="head-actions">
@@ -41,7 +41,7 @@
             type="textarea"
             :rows="24"
             class="paper-input"
-            placeholder="请示正文"
+            placeholder="公文正文"
             :disabled="!doc"
             @input="onContentChange"
           />
