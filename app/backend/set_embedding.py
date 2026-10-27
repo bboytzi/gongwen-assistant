@@ -9,13 +9,13 @@
 
 用法：
     # 按 TokenHub 默认值写入并测试
-    docker exec -it claw-backend python set_embedding.py
+    docker exec -it gongwen-backend python set_embedding.py
 
     # 只测试不写库
-    docker exec -it claw-backend python set_embedding.py --test-only
+    docker exec -it gongwen-backend python set_embedding.py --test-only
 
     # 指定其他服务商
-    docker exec -it claw-backend python set_embedding.py \
+    docker exec -it gongwen-backend python set_embedding.py \
         --model text-embedding-v3 \
         --url https://dashscope.aliyuncs.com/compatible-mode/v1
 """
@@ -129,11 +129,11 @@ def main():
         print("=" * 62)
         print("  下一步：")
         print("  1. 重启服务让配置生效")
-        print("       docker restart claw-backend claw-worker")
+        print("       docker restart gongwen-backend gongwen-worker")
         print("  2. 把知识库里已有的文档重新入库（之前没算向量的要补）")
         print("       在知识库页面点文档的「重试」，或重新上传")
         print("  3. 跑一次自检确认")
-        print("       docker exec -it claw-backend python verify.py")
+        print("       docker exec -it gongwen-backend python verify.py")
         print("=" * 62)
         return 0
 
