@@ -5,6 +5,7 @@ import time
 from typing import Optional
 from services.llm_client import LLMClient
 from services.search import hybrid_search
+from services.doc_types import get_doc_type, section_names_with_suffix
 from sqlalchemy.orm import Session
 
 
@@ -34,14 +35,12 @@ INTENT_ANALYSIS_PROMPT = """你是一个国企公文写作专家。请分析以�
 }}
 """
 
-OUTLINE_PROMPT = """你是一个国企公文写作专家。请根据以下信息，生成公文的大纲。
+OUTLINE_PROMPT = """你是一个国企公文写作专家。请根据以下信息，生成一份{type_name}的大纲。
 
 公文标题：{title}
+文种：{type_name}（{type_usage}）
 公文类别：{doc_category}
-采购场景：{procurement_scenario}
-预算金额：{budget_amount} 万元
-采购方式：{procurement_method}
-
+{extra_context}
 关键要素：
 {key_elements}
 
@@ -52,15 +51,15 @@ OUTLINE_PROMPT = """你是一个国企公文写作专家。请根据以下信息
 {rag_cases}
 
 请输出大纲，包含以下部分（每部分用一句话说明要写什么）：
-1. 事由段落
-2. 依据段落（引用哪些制度条款）
-3. 请示事项段落
-4. 附件清单
+{sections_list}
+
+文种写作要求：
+{type_hint}
 
 只输出大纲，不要写正文。
 """
 
-SECTION_GENERATE_PROMPT = """你是一个国企公文写作专家。请根据以下大纲和参考材料，生成公文的"{section_name}"部分。
+SECTION_GENERATE_PROMPT = """你是一个国企公文写作专家。请根据以下大纲和参考材料，生成{type_name}的"{section_name}"部分。
 
 公文标题：{title}
 大纲要求：{outline}
@@ -71,6 +70,9 @@ SECTION_GENERATE_PROMPT = """你是一个国企公文写作专家。请根据以
 
 历史案例参考（参考其写作风格和结构，但不要照抄）：
 {rag_cases}
+
+文种写作要求：
+{type_hint}
 
 要求：
 1. 使用公文语言，简洁、准确、正式
@@ -214,12 +216,31 @@ class GenerationPipeline:
             for r in rag_results.get("cases", [])[:3]
         )
         budget = doc_config.get("budget_amount", 0)
+        dt = get_doc_type(doc_config.get("doc_type"))
+
+        # 采购相关上下文只对请示类文种有意义
+        extra_lines = []
+        if dt["needs_procurement"]:
+            scenario = doc_config.get("procurement_scenario")
+            if scenario:
+                extra_lines.append(f"采购场景：{scenario}")
+            if budget:
+                extra_lines.append(f"预算金额：{budget} 万元")
+                extra_lines.append(f"采购方式：{determine_procurement_method(budget)}")
+        extra_context = ("\n".join(extra_lines) + "\n") if extra_lines else ""
+
+        sections_list = "\n".join(
+            f"{i}. {s}段落" for i, s in enumerate(dt["sections"], 1)
+        )
+
         prompt = OUTLINE_PROMPT.format(
+            type_name=dt["name"],
+            type_usage=dt["usage"],
+            type_hint=dt["prompt_hint"],
+            sections_list=sections_list,
+            extra_context=extra_context,
             title=doc_config.get("title", ""),
             doc_category=doc_config.get("doc_category", ""),
-            procurement_scenario=doc_config.get("procurement_scenario", ""),
-            budget_amount=budget,
-            procurement_method=determine_procurement_method(budget) if budget else "",
             key_elements=json.dumps(doc_config.get("key_elements", {}), ensure_ascii=False, indent=2),
             rag_context=rag_context,
             rag_cases=rag_cases,
@@ -247,9 +268,13 @@ class GenerationPipeline:
             f"[{r['title']}]\n{r['content'][:300]}"
             for r in rag_results.get("cases", [])[:3]
         )
+        dt = get_doc_type(doc_config.get("doc_type"))
         scenario = doc_config.get("procurement_scenario", "")
-        scenario_hint = SCENARIO_HINTS.get(scenario, "")
+        # 采购场景提示只对请示类文种生效
+        scenario_hint = SCENARIO_HINTS.get(scenario, "") if dt["needs_procurement"] else ""
         prompt = SECTION_GENERATE_PROMPT.format(
+            type_name=dt["name"],
+            type_hint=dt["prompt_hint"],
             section_name=section_name,
             title=doc_config.get("title", ""),
             outline=outline,
