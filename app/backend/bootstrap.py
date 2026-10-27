@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-天府数产公文辅助系统 — 部署后初始化脚本
+公文辅助系统 — 部署后初始化脚本
 
 功能：
   1. 修复数据库结构（补齐 search_tsv 列、向量列类型、索引、触发器）
@@ -279,7 +279,7 @@ def list_users(db):
 # ---------------------------------------------------------------- main
 
 def main():
-    parser = argparse.ArgumentParser(description="天府数产公文辅助系统 — 初始化脚本")
+    parser = argparse.ArgumentParser(description="公文辅助系统 — 初始化脚本")
     parser.add_argument("--username", default="admin", help="管理员用户名（默认 admin）")
     parser.add_argument("--password", default="Admin@2026", help="管理员密码（默认 Admin@2026）")
     parser.add_argument("--department", default="系统管理", help="部门")
@@ -290,7 +290,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 64)
-    print("  天府数产公文辅助系统 — 部署后初始化")
+    print("  公文辅助系统 — 部署后初始化")
     print("=" * 64)
 
     db = SessionLocal()
