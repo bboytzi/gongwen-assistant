@@ -21,8 +21,13 @@
       </span>
     </div>
 
-    <div v-if="activeTab === 'company' && !isAdmin" class="notice">
-      公司级知识库由管理员统一维护，如需上传请联系管理员
+    <div v-if="activeTab === 'company'" class="notice">
+      <template v-if="!isAdmin">
+        公司级知识库由管理员统一维护，所有账号都能检索到这里的文档
+      </template>
+      <template v-else>
+        这里的文档所有账号都能检索到。个人材料请传到「个人级」
+      </template>
     </div>
 
     <el-upload
@@ -88,6 +93,8 @@ const personalDocs = ref([])
 const loading = ref(false)
 const companyKbId = ref('')
 const personalKbId = ref('')
+// 初始化阶段切换 tab 不应触发重复加载
+let initialized = false
 
 const accept = '.pdf,.docx'
 
@@ -118,9 +125,12 @@ const uploadHeaders = computed(() => ({
 
 onMounted(async () => {
   await userStore.fetchMe()
+  // 管理员默认进公司级：那里上传的文档全员可用，避免继续往个人库里堆
+  activeTab.value = isAdmin.value ? 'company' : 'personal'
   const data = await api.get('/kb/bases')
   if (data.company?.length) companyKbId.value = data.company[0].id
   if (data.personal?.length) personalKbId.value = data.personal[0].id
+  initialized = true
   loadCompany()
   loadPersonal()
 })
@@ -148,6 +158,7 @@ function reload() {
 }
 
 watch(activeTab, () => {
+  if (!initialized) return
   activeTab.value === 'company' ? loadCompany() : loadPersonal()
 })
 
