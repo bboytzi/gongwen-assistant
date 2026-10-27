@@ -4,7 +4,7 @@ from pathlib import Path
 
 class Settings(BaseSettings):
     # Application
-    APP_NAME: str = "天府数产公文辅助系统"
+    APP_NAME: str = "公文辅助系统"
     APP_VERSION: str = "1.0.0"
     SECRET_KEY: str = "claw-secret-key-change-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
