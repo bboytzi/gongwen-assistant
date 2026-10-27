@@ -65,12 +65,13 @@
             <label>服务商</label>
             <el-select v-model="form.provider" style="width: 100%" @change="onProviderChange">
               <el-option label="阿里云百炼" value="qwen" />
-              <el-option label="腾讯云 TokenHub" value="tokenhub" />
+              <el-option label="腾讯云 TokenHub（按量付费）" value="tokenhub_pay" />
+              <el-option label="腾讯云 TokenHub（套餐 Key）" value="tokenhub" />
               <el-option label="DeepSeek" value="deepseek" />
               <el-option label="智谱 GLM" value="zhipu" />
               <el-option label="自定义" value="custom" />
             </el-select>
-            <div class="hint">切换服务商会自动填入该家的默认地址与模型名</div>
+            <div class="hint">按量付费的对话与向量同在 /v1，一个 Key 通用；套餐 Key 只能调 /plan/v3 的对话接口</div>
           </div>
 
           <div class="field">
@@ -243,7 +244,8 @@ const form = ref({
 
 const PROVIDER_LABELS = {
   qwen: '阿里云百炼',
-  tokenhub: '腾讯云 TokenHub',
+  tokenhub: 'TokenHub 套餐',
+  tokenhub_pay: 'TokenHub 按量',
   deepseek: 'DeepSeek',
   zhipu: '智谱 GLM',
   custom: '自定义',
