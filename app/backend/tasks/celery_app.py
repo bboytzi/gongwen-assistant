@@ -3,7 +3,7 @@ from celery import Celery
 from core.config import settings
 
 celery_app = Celery(
-    "claw",
+    "gongwen",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
     # worker 启动时自动 import 任务模块。
