@@ -8,7 +8,7 @@
       </div>
       <div class="head-actions">
         <el-button @click="$router.push('/knowledge')">上传制度</el-button>
-        <el-button type="primary" @click="$router.push('/documents/new')">新建请示</el-button>
+        <el-button type="primary" @click="$router.push('/documents/new')">新建公文</el-button>
       </div>
     </div>
 
@@ -39,7 +39,7 @@
 
     <div class="card list">
       <div class="list-head">
-        <span class="card-title">最近请示</span>
+        <span class="card-title">最近公文</span>
         <span class="list-count">共 {{ documents.length }} 篇</span>
       </div>
 
@@ -70,7 +70,7 @@
         </el-table-column>
         <template #empty>
           <div class="empty">
-            <div class="empty-text">还没有请示材料</div>
+            <div class="empty-text">还没有公文</div>
             <el-button type="primary" size="small" @click="$router.push('/documents/new')">
               新建第一篇
             </el-button>
@@ -107,17 +107,17 @@ const greeting = computed(() => {
 
 const subline = computed(() => {
   const n = stats.value?.generating || 0
-  if (n > 0) return `有 ${n} 份请示正在生成`
+  if (n > 0) return `有 ${n} 份公文正在生成`
   const total = stats.value?.total_documents || 0
-  if (total === 0) return '还没有请示材料，从新建一篇开始'
-  return '所有请示均已完成'
+  if (total === 0) return '还没有公文，从新建一篇开始'
+  return '所有公文均已完成'
 })
 
 const statCards = computed(() => {
   const s = stats.value || {}
   return [
     {
-      label: '本月请示',
+      label: '本月公文',
       value: s.month_documents ?? 0,
       note: `累计 ${s.total_documents ?? 0} 篇`,
     },
@@ -143,7 +143,7 @@ const statCards = computed(() => {
 
 const quicks = [
   {
-    title: '新建请示',
+    title: '新建公文',
     sub: '采购 / 人事 / 资金 / 项目',
     to: '/documents/new',
     icon: EditPen,
