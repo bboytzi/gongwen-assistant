@@ -16,7 +16,7 @@ KEY_SUBTITLE = "system_subtitle"
 KEY_LOGO = "system_logo"
 
 DEFAULT_NAME = "公文辅助系统"
-DEFAULT_SUBTITLE = "请示材料自动生成 · 制度检索 · 知识库"
+DEFAULT_SUBTITLE = "公文起草 · 制度检索 · 知识库"
 
 MAX_LOGO_BYTES = 200 * 1024  # 200KB，base64 后约 270KB
 
