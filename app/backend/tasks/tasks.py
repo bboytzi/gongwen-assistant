@@ -16,6 +16,7 @@ from services.llm_client import LLMClient
 from services.file_parser import parse_file, chunk_text
 from services.generation import GenerationPipeline, determine_procurement_method_en
 from services.doc_types import get_doc_type, section_names_with_suffix
+from services.llm_config import get_active_config
 from services.word_renderer import TemplateRenderer
 
 
@@ -57,10 +58,7 @@ def process_kb_document(doc_id: str):
         # 尝试获取 embedding 能力（可能不存在：如 DeepSeek 无 embedding 接口）
         llm = None
         embed_ready = False
-        llm_config = db.query(LLMConfig).filter(
-            LLMConfig.user_id == doc.user_id,
-            LLMConfig.is_active == True
-        ).first()
+        llm_config = get_active_config(db, doc.user_id)
 
         if llm_config and llm_config.embedding_model:
             try:
@@ -172,10 +170,7 @@ def generate_document(task_id: str):
             return {"error": "Document not found"}
 
         # Get user's active LLM config
-        llm_config = db.query(LLMConfig).filter(
-            LLMConfig.user_id == task.user_id,
-            LLMConfig.is_active == True
-        ).first()
+        llm_config = get_active_config(db, task.user_id)
         if not llm_config:
             task.status = "failed"
             task.error_message = "No active LLM config"
