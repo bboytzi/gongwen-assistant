@@ -51,6 +51,35 @@ def startup():
     applied = ensure_schema(engine)
     if applied:
         print(f"[startup] 已补齐字段: {', '.join(applied)}")
+    ensure_company_kb()
+
+
+def ensure_company_kb():
+    """确保存在公司级知识库。
+
+    公司级知识库对所有账号可见，是「一处上传、全员可用」的载体。
+    之前只有 bootstrap.py 会创建，没跑过初始化的部署就一直缺这个库，
+    管理员上传的文档全落在个人库里，其他人检索不到。
+    """
+    from core.database import SessionLocal
+    from models.models import KnowledgeBase
+
+    db = SessionLocal()
+    try:
+        exists = (
+            db.query(KnowledgeBase)
+            .filter(KnowledgeBase.level == "company")
+            .first()
+        )
+        if exists is None:
+            db.add(KnowledgeBase(user_id=None, name="公司制度库", level="company"))
+            db.commit()
+            print("[startup] 已创建公司级知识库：公司制度库")
+    except Exception as e:
+        print(f"[startup] 检查公司级知识库失败: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
