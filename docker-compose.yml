@@ -91,7 +91,9 @@ services:
     container_name: gongwen-frontend
     restart: always
     ports:
-      - "80:80"
+      # 端口从 .env 读取，未设置时用 80。
+      # 这样换端口不必改仓库文件，避免每次 pull 都冲突。
+      - "${FRONTEND_PORT:-80}:80"
     volumes:
       - ./app/nginx/gongwen.conf:/etc/nginx/conf.d/default.conf
     depends_on:
