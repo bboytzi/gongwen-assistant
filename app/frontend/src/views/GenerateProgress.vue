@@ -91,7 +91,7 @@ let ws = null
 let pollTimer = null
 
 const steps = [
-  { key: 'intent', name: '意图解析', desc: '识别请示类型与关键要素' },
+  { key: 'intent', name: '意图解析', desc: '识别公文类别与关键要素' },
   { key: 'rag', name: '制度检索', desc: '从知识库提取相关条款' },
   { key: 'outline', name: '大纲生成', desc: '确定公文结构' },
   { key: 'generate', name: '分段撰写', desc: '逐段生成正文' },
