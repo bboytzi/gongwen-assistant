@@ -23,8 +23,8 @@
 ### 2. 部署
 
 ```bash
-git clone https://github.com/bboytzi/公文辅助系统.git
-cd 公文辅助系统
+git clone https://github.com/bboytzi/gongwen-assistant.git
+cd gongwen-assistant
 docker-compose up -d
 ```
 
@@ -40,7 +40,7 @@ docker-compose up -d
 ## 项目结构
 
 ```
-公文辅助系统/
+gongwen-assistant/
 ├── app/
 │   ├── backend/          # FastAPI 后端
 │   │   ├── api/          # API 路由
