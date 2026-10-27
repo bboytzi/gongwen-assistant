@@ -3,8 +3,8 @@
 交互式配置 LLM，自动创建配置、测试、激活。
 
 用法：
-    docker exec -it claw-backend python setup_llm.py
-    docker exec -it claw-backend python setup_llm.py --preset aliyun
+    docker exec -it gongwen-backend python setup_llm.py
+    docker exec -it gongwen-backend python setup_llm.py --preset aliyun
 
 脚本会：
   1. 让你选择服务商（或直接指定）
