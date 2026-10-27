@@ -6,6 +6,7 @@ from models.models import User, LLMConfig, KnowledgeBase
 from schemas.document import SearchRequest, SearchResponse, SearchResult
 from api.auth import get_current_user
 from services.llm_client import LLMClient
+from services.llm_config import get_active_config
 from services.search import hybrid_search, keyword_search
 
 router = APIRouter(prefix="/api/search", tags=["search"])
@@ -54,12 +55,12 @@ def search(
         )
 
     # Semantic or hybrid: need embedding
-    llm_config = db.query(LLMConfig).filter(
-        LLMConfig.user_id == current_user.id,
-        LLMConfig.is_active == True,
-    ).first()
+    llm_config = get_active_config(db, current_user.id)
     if not llm_config:
-        raise HTTPException(status_code=400, detail="No active LLM config. Please configure one in Settings.")
+        raise HTTPException(
+            status_code=400,
+            detail="尚未配置可用的模型，请管理员在「设置 → 模型配置」中激活一条配置",
+        )
 
     api_key = decrypt_api_key(llm_config.api_key_encrypted)
     emb_key = (
