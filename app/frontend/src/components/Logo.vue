@@ -1,5 +1,14 @@
 <template>
+  <img
+    v-if="customSrc"
+    :src="customSrc"
+    :width="size"
+    :height="size"
+    :alt="label"
+    class="logo-img"
+  />
   <svg
+    v-else
     :width="size"
     :height="size"
     viewBox="0 0 88 88"
@@ -17,10 +26,27 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import { useSystemStore } from '../store/system'
+
+const props = defineProps({
   size: { type: [Number, String], default: 26 },
   color: { type: String, default: '#A63A2E' },
   lineColor: { type: String, default: '#FAF8F3' },
-  label: { type: String, default: '天府数产' },
+  label: { type: String, default: '系统标识' },
 })
+
+const system = useSystemStore()
+
+// 管理员上传过 logo 就用它，否则回落到内置方印
+const customSrc = computed(() => system.logo || null)
 </script>
+
+<style scoped>
+.logo-img {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 4px;
+  object-fit: contain;
+}
+</style>
