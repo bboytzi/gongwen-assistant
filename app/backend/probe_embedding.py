@@ -3,10 +3,10 @@
 探测当前 LLM 服务可用的 Embedding 模型与向量维度。
 
 在容器内执行（复用已激活配置里的 API Key，无需重新输入）：
-    docker exec -it claw-backend python probe_embedding.py
+    docker exec -it gongwen-backend python probe_embedding.py
 
     # 也可以直接指定模型名测试
-    docker exec -it claw-backend python probe_embedding.py --model xxx
+    docker exec -it gongwen-backend python probe_embedding.py --model xxx
 
 脚本会：
   1. 尝试拉取模型列表（GET {base}/models）
@@ -169,7 +169,7 @@ def main():
         print("  结论：没有可测试的候选模型")
         print("  请到 TokenHub 控制台的「模型广场 → 向量模型」查看准确的模型 ID，")
         print("  然后用 --model 参数单独测试：")
-        print("    docker exec -it claw-backend python probe_embedding.py --model <模型ID>")
+        print("    docker exec -it gongwen-backend python probe_embedding.py --model <模型ID>")
     print("=" * 62)
 
     client.close()
