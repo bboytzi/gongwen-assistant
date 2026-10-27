@@ -18,6 +18,14 @@
     </div>
 
     <div v-show="tab === 'model'" class="layout">
+      <div v-if="!isAdmin" class="card card-pad placeholder" style="width: 100%">
+        <div class="placeholder-title">模型由管理员统一配置</div>
+        <div class="placeholder-sub">
+          当前账号直接使用管理员激活的模型，无需单独设置。如需更换模型或 Key，请联系管理员。
+        </div>
+      </div>
+
+      <template v-else>
       <div class="list-col">
         <div class="card card-pad">
           <div class="card-title">配置列表</div>
@@ -154,6 +162,7 @@
           </div>
         </div>
       </div>
+      </template>
     </div>
 
     <div v-if="tab === 'brand'" class="brand-wrap">
