@@ -15,6 +15,7 @@ from models.models import (
 from services.llm_client import LLMClient
 from services.file_parser import parse_file, chunk_text
 from services.generation import GenerationPipeline, determine_procurement_method_en
+from services.doc_types import get_doc_type, section_names_with_suffix
 from services.word_renderer import TemplateRenderer
 
 
@@ -219,6 +220,7 @@ def generate_document(task_id: str):
         # Build doc config
         doc_config = {
             "title": document.title,
+            "doc_type": document.doc_type or "request",
             "doc_category": document.doc_category or "procurement",
             "procurement_scenario": document.procurement_scenario or "",
             "budget_amount": document.budget_amount or 0,
@@ -259,15 +261,25 @@ def generate_document(task_id: str):
         task.current_step = "generate"
         db.commit()
         sections = {}
-        section_names = ["事由段落", "依据段落", "请示事项段落"]
+        # 分段结构由文种决定：请示三段的写法不能套到通知或纪要上
+        doc_type_cfg = get_doc_type(document.doc_type)
+        section_names = section_names_with_suffix(document.doc_type)
+        step = 30 / max(len(section_names), 1)
         for i, section in enumerate(section_names):
             sections[section] = pipeline.generate_section(
                 section, outline, doc_config, rag_results
             )
-            task.progress = 60 + (i + 1) * 10
+            task.progress = 60 + int((i + 1) * step)
             db.commit()
 
-        full_content = "\n\n".join(sections.values())
+        # 组装完整正文：主送机关 + 分段 + 结束语
+        parts = []
+        if doc_type_cfg["recipient"]:
+            parts.append(doc_type_cfg["recipient"])
+        parts.extend(sections.values())
+        if doc_type_cfg["closing"]:
+            parts.append(doc_type_cfg["closing"])
+        full_content = "\n\n".join(parts)
 
         # Step 5: Validate references
         task.progress = 90
