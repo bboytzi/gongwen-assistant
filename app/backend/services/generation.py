@@ -8,17 +8,17 @@ from services.search import hybrid_search
 from sqlalchemy.orm import Session
 
 
-INTENT_ANALYSIS_PROMPT = """你是一个国企公文写作专家。请分析以下请示请求，提取关键信息。
+INTENT_ANALYSIS_PROMPT = """你是一个国企公文写作专家。请分析以下公文起草请求，提取关键信息。
 
 用户输入：
 {user_input}
 
-请示类型：{doc_category}
+公文类别：{doc_category}
 关键要素：{key_elements}
 
 请输出 JSON 格式（只输出JSON，不要其他内容）：
 {{
-  "doc_category": "请示的具体类别",
+  "doc_category": "公文的具体类别",
   "procurement_scenario": "采购场景（如果是采购类）",
   "budget_amount": "预算金额（数字）",
   "procurement_method": "建议的采购方式（直接委托/询价/公开采购/招标）",
@@ -34,10 +34,10 @@ INTENT_ANALYSIS_PROMPT = """你是一个国企公文写作专家。请分析以�
 }}
 """
 
-OUTLINE_PROMPT = """你是一个国企公文写作专家。请根据以下信息，生成请示材料的大纲。
+OUTLINE_PROMPT = """你是一个国企公文写作专家。请根据以下信息，生成公文的大纲。
 
-请示标题：{title}
-请示类型：{doc_category}
+公文标题：{title}
+公文类别：{doc_category}
 采购场景：{procurement_scenario}
 预算金额：{budget_amount} 万元
 采购方式：{procurement_method}
@@ -60,9 +60,9 @@ OUTLINE_PROMPT = """你是一个国企公文写作专家。请根据以下信息
 只输出大纲，不要写正文。
 """
 
-SECTION_GENERATE_PROMPT = """你是一个国企公文写作专家。请根据以下大纲和参考材料，生成请示的"{section_name}"部分。
+SECTION_GENERATE_PROMPT = """你是一个国企公文写作专家。请根据以下大纲和参考材料，生成公文的"{section_name}"部分。
 
-请示标题：{title}
+公文标题：{title}
 大纲要求：{outline}
 关键要素：{key_elements}
 
@@ -81,13 +81,13 @@ SECTION_GENERATE_PROMPT = """你是一个国企公文写作专家。请根据以
 {scenario_hint}
 """
 
-# Procurement scenario hints (from 采购请示模板2022.11.14.docx)
+# Procurement scenario hints (from 采购公文模板2022.11.14.docx)
 SCENARIO_HINTS = {
-    "project_execution": "本请示为项目执行采购场景。事由应说明项目进展情况和执行需要，依据引用项目审批文件和采购管理办法。",
-    "element_org": "本请示为要素组织采购场景。事由应说明组织要素配置需求，依据引用组织管理办法和采购管理办法。",
-    "joint": "本请示为联合采购场景。事由应说明联合采购的必要性和参与方，依据引用采购管理办法第十七条联合采购条款。",
-    "admin": "本请示为行政后勤采购场景。事由应说明行政办公需求，依据引用行政管理办法和采购管理办法。",
-    "client_specified": "本请示为甲方指定采购场景。事由应说明甲方指定的原因和依据，依据引用合同条款和采购管理办法第十八条。",
+    "project_execution": "本公文为项目执行采购场景。事由应说明项目进展情况和执行需要，依据引用项目审批文件和采购管理办法。",
+    "element_org": "本公文为要素组织采购场景。事由应说明组织要素配置需求，依据引用组织管理办法和采购管理办法。",
+    "joint": "本公文为联合采购场景。事由应说明联合采购的必要性和参与方，依据引用采购管理办法第十七条联合采购条款。",
+    "admin": "本公文为行政后勤采购场景。事由应说明行政办公需求，依据引用行政管理办法和采购管理办法。",
+    "client_specified": "本公文为甲方指定采购场景。事由应说明甲方指定的原因和依据，依据引用合同条款和采购管理办法第十八条。",
 }
 
 # Budget-based procurement method determination
@@ -113,9 +113,9 @@ def determine_procurement_method_en(budget_amount: float) -> str:
         return "tender"
 
 
-REFERENCE_VALIDATE_PROMPT = """请检查以下请示内容中引用的制度条款是否真实存在于给定的参考材料中。
+REFERENCE_VALIDATE_PROMPT = """请检查以下公文内容中引用的制度条款是否真实存在于给定的参考材料中。
 
-请示内容：
+公文内容：
 {content}
 
 参考材料（原始制度条款）：
