@@ -4,7 +4,7 @@
       <div>
         <div class="crumb">资源 / 知识库</div>
         <h1 class="page-title">知识库</h1>
-        <div class="page-sub">制度文件与历史请示，是生成时的依据来源</div>
+        <div class="page-sub">制度文件与历史公文，是生成时的依据来源</div>
       </div>
     </div>
 
@@ -50,7 +50,7 @@
     <div v-loading="loading" class="grid-wrap">
       <div v-if="docs.length === 0 && !loading" class="empty">
         <div class="empty-text">这里还没有文档</div>
-        <div class="empty-sub">上传制度文件后，生成请示时才能引用条款依据</div>
+        <div class="empty-sub">上传制度文件后，生成公文时才能引用条款依据</div>
       </div>
 
       <div class="grid">
@@ -217,7 +217,7 @@ function statusStyle(s) {
 }
 
 function typeText(t) {
-  return { regulation: '管理办法', case: '历史请示', template: '模板', other: '其他' }[t] || '其他'
+  return { regulation: '管理办法', case: '历史公文', template: '模板', other: '其他' }[t] || '其他'
 }
 
 function formatDate(d) {
