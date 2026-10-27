@@ -44,7 +44,7 @@
           </el-menu-item>
           <el-menu-item index="/documents/new">
             <el-icon><EditPen /></el-icon>
-            <span>新建请示</span>
+            <span>新建公文</span>
           </el-menu-item>
           <el-menu-item index="/search">
             <el-icon><Search /></el-icon>
