@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import api from '../api'
 
 const FALLBACK_NAME = '公文辅助系统'
-const FALLBACK_SUBTITLE = '请示材料自动生成 · 制度检索 · 知识库'
+const FALLBACK_SUBTITLE = '公文起草 · 制度检索 · 知识库'
 
 export const useSystemStore = defineStore('system', {
   state: () => ({
