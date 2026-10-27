@@ -2,8 +2,8 @@
   <div class="page">
     <div class="page-head">
       <div>
-        <div class="crumb">工作台 / 新建请示</div>
-        <h1 class="page-title">新建请示</h1>
+        <div class="crumb">工作台 / 新建公文</div>
+        <h1 class="page-title">新建公文</h1>
         <div class="page-sub">填写关键要素，系统据此检索制度依据并生成正文</div>
       </div>
     </div>
@@ -14,7 +14,7 @@
           <div class="card-title">基本信息</div>
           <div class="row2">
             <div class="field">
-              <label>请示类型</label>
+              <label>公文类别</label>
               <el-select v-model="form.doc_category" style="width: 100%">
                 <el-option label="采购类" value="procurement" />
                 <el-option label="人事类" value="personnel" />
@@ -123,7 +123,7 @@
           :loading="submitting"
           @click="handleSubmit"
         >
-          生成请示材料
+          生成公文
         </el-button>
       </div>
 
@@ -137,9 +137,9 @@
           <div class="paper-title">{{ form.title || '关于……的请示' }}</div>
           <div class="paper-to">公司领导：</div>
           <p class="paper-p">
-            {{ form.key_elements['事由'] || '（此处填写请示事由）' }}。现将有关情况请示如下。
+            {{ form.key_elements['事由'] || '（此处填写事由）' }}。现将有关情况请示如下。
           </p>
-          <div class="paper-h">一、请示事由</div>
+          <div class="paper-h">一、事由</div>
           <p class="paper-p">
             现有条件已不能满足当前需要，拟{{ actionWord }}，预算金额
             {{ form.budget_amount ? form.budget_amount + ' 万元' : '（待填）' }}，
