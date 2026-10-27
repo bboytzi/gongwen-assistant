@@ -32,6 +32,13 @@ PROVIDER_DEFAULTS = {
         "embedding_model": "kinfra-text-embedding-0.6b",
         "embedding_url": "https://tokenhub-intl.tencentcloudmaas.com/v1",
     },
+    # TokenHub 按量计费：对话与向量同在 /v1，一个 Key 通用
+    "tokenhub_pay": {
+        "api_url": "https://tokenhub-intl.tencentcloudmaas.com/v1",
+        "chat_model": "deepseek/deepseek-flash",
+        "embedding_model": "kinfra-text-embedding-0.6b",
+        "embedding_url": "https://tokenhub-intl.tencentcloudmaas.com/v1",
+    },
     "custom": {
         "api_url": "",
         "chat_model": "",
