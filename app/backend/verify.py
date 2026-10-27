@@ -3,7 +3,7 @@
 公文辅助系统 — 系统自检
 
 在容器内执行，凭据不出容器：
-    docker exec -it claw-backend python verify.py
+    docker exec -it gongwen-backend python verify.py
 
 逐项检查数据库、扩展、账号、LLM 连通性、队列、知识库数据，
 最后给出「能否投入使用」的结论。
@@ -231,7 +231,7 @@ def check_queue():
         replies = celery_app.control.ping(timeout=3)
         if not replies:
             print(f"{FAIL} 没有 Celery worker 响应")
-            record("FAIL", "Celery worker 未运行，检查 docker logs claw-worker")
+            record("FAIL", "Celery worker 未运行，检查 docker logs gongwen-worker")
             return
 
         print(f"{OK} Celery worker 在线 {len(replies)} 个")
