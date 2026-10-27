@@ -2,7 +2,7 @@
   <div class="shell">
     <header class="topbar">
       <Logo :size="26" />
-      <span class="brand">天府数产公文辅助系统</span>
+      <span class="brand">{{ system.name }}</span>
 
       <div class="search">
         <el-icon class="search-icon"><Search /></el-icon>
@@ -67,11 +67,6 @@
             <span>设置</span>
           </el-menu-item>
         </el-menu>
-
-        <div class="sidebar-foot">
-          <div class="foot-line"></div>
-          <div class="foot-text">成都天府新区数字产业有限公司</div>
-        </div>
       </aside>
 
       <main class="main">
@@ -85,11 +80,13 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../store/user'
+import { useSystemStore } from '../store/system'
 import Logo from './Logo.vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const system = useSystemStore()
 
 const keyword = ref('')
 const searchRef = ref(null)
@@ -270,23 +267,6 @@ function handleLogout() {
   font-size: 11px;
   color: var(--ink-4);
   letter-spacing: 1px;
-}
-
-.sidebar-foot {
-  margin-top: auto;
-  padding: 16px 22px 18px;
-}
-
-.foot-line {
-  height: 1px;
-  background: var(--line);
-  margin-bottom: 10px;
-}
-
-.foot-text {
-  font-size: 10px;
-  color: var(--ink-4);
-  line-height: 1.6;
 }
 
 .main {
