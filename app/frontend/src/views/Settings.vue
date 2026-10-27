@@ -3,12 +3,21 @@
     <div class="page-head">
       <div>
         <div class="crumb">资源 / 设置</div>
-        <h1 class="page-title">模型设置</h1>
-        <div class="page-sub">配置对话与向量模型，生成和检索都依赖这里的激活配置</div>
+        <h1 class="page-title">{{ tab === 'brand' ? '系统外观' : '模型设置' }}</h1>
+        <div class="page-sub">
+          {{ tab === 'brand'
+            ? '修改系统名称与标识，全站与登录页同步生效'
+            : '配置对话与向量模型，生成和检索都依赖激活的配置' }}
+        </div>
       </div>
     </div>
 
-    <div class="layout">
+    <div class="tabs">
+      <span class="tab" :class="{ active: tab === 'model' }" @click="tab = 'model'">模型配置</span>
+      <span v-if="isAdmin" class="tab" :class="{ active: tab === 'brand' }" @click="switchToBrand">系统外观</span>
+    </div>
+
+    <div v-show="tab === 'model'" class="layout">
       <div class="list-col">
         <div class="card card-pad">
           <div class="card-title">配置列表</div>
@@ -145,13 +154,71 @@
         </div>
       </div>
     </div>
+
+    <div v-if="tab === 'brand'" class="brand-wrap">
+      <div class="card card-pad">
+        <div class="card-title">系统名称</div>
+        <div class="field">
+          <label>名称</label>
+          <el-input v-model="brandForm.name" placeholder="公文辅助系统" maxlength="50" show-word-limit />
+          <div class="hint">显示在顶栏、登录页与浏览器标签，留空则恢复默认</div>
+        </div>
+        <div class="field">
+          <label>副标题</label>
+          <el-input v-model="brandForm.subtitle" placeholder="请示材料自动生成 · 制度检索 · 知识库" maxlength="100" />
+          <div class="hint">仅登录页显示</div>
+        </div>
+      </div>
+
+      <div class="card card-pad">
+        <div class="card-title">系统标识</div>
+
+        <div class="logo-row">
+          <div class="logo-preview">
+            <Logo :size="56" />
+          </div>
+          <div class="logo-side">
+            <div class="logo-tip">
+              未上传时使用内置方印。建议上传正方形图片，浅色或透明底，
+              尺寸不小于 64×64。
+            </div>
+            <div class="logo-actions">
+              <el-upload
+                :auto-upload="false"
+                :show-file-list="false"
+                accept=".png,.jpg,.jpeg,.svg,.webp"
+                :on-change="onLogoChange"
+              >
+                <el-button>上传图片</el-button>
+              </el-upload>
+              <el-button v-if="brandForm.logo" @click="brandForm.logo = null">恢复内置图案</el-button>
+            </div>
+            <div class="hint">支持 PNG / JPG / SVG / WEBP，不超过 200KB</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="brand-actions">
+        <el-button type="primary" :loading="savingBrand" @click="saveBrand">保存并应用</el-button>
+        <el-button @click="switchToBrand">撤销未保存的修改</el-button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import api from '../api'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import api from '../api'
+import Logo from '../components/Logo.vue'
+import { useUserStore } from '../store/user'
+import { useSystemStore } from '../store/system'
+
+const userStore = useUserStore()
+const system = useSystemStore()
+const isAdmin = computed(() => userStore.user?.role === 'admin')
+
+const tab = ref('model')
 
 const configs = ref([])
 const showForm = ref(false)
@@ -159,6 +226,9 @@ const editing = ref(null)
 const testing = ref(false)
 const testResult = ref(null)
 const providerDefaults = ref({})
+
+const brandForm = ref({ name: '', subtitle: '', logo: null })
+const savingBrand = ref(false)
 
 const form = ref({
   name: '',
@@ -184,6 +254,7 @@ function providerLabel(p) {
 }
 
 onMounted(async () => {
+  await userStore.fetchMe()
   await loadConfigs()
   try {
     const data = await api.get('/llm/providers')
@@ -195,6 +266,50 @@ onMounted(async () => {
 
 async function loadConfigs() {
   configs.value = await api.get('/llm/configs')
+}
+
+function switchToBrand() {
+  if (tab.value !== 'brand') {
+    // 每次进入都从 store 取当前生效值，丢弃上次未保存的修改
+    brandForm.value = {
+      name: system.name,
+      subtitle: system.subtitle,
+      logo: system.logo,
+    }
+  }
+  tab.value = tab.value === 'brand' ? 'model' : 'brand'
+}
+
+function onLogoChange(file) {
+  const raw = file.raw
+  if (!raw) return
+  if (raw.size > 200 * 1024) {
+    ElMessage.error('图片不能超过 200KB，请先压缩')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    brandForm.value.logo = reader.result
+  }
+  reader.onerror = () => ElMessage.error('读取图片失败')
+  reader.readAsDataURL(raw)
+}
+
+async function saveBrand() {
+  savingBrand.value = true
+  try {
+    const data = await api.put('/settings', {
+      system_name: brandForm.value.name,
+      system_subtitle: brandForm.value.subtitle,
+      system_logo: brandForm.value.logo || '',
+    })
+    system.apply(data)
+    ElMessage.success('已应用')
+  } catch {
+    // 拦截器已提示
+  } finally {
+    savingBrand.value = false
+  }
 }
 
 function startCreate() {
@@ -298,6 +413,27 @@ function resStyle(ok) {
 </script>
 
 <style scoped>
+.tabs {
+  display: flex;
+  gap: 22px;
+  border-bottom: 0.5px solid var(--line);
+  margin-bottom: 16px;
+}
+
+.tab {
+  padding: 0 2px 9px;
+  font-size: 13px;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-bottom: 1.5px solid transparent;
+  margin-bottom: -0.5px;
+}
+
+.tab.active {
+  color: var(--seal);
+  border-bottom-color: var(--seal);
+}
+
 .layout {
   display: flex;
   gap: 16px;
@@ -460,5 +596,54 @@ function resStyle(ok) {
   font-family: monospace;
   word-break: break-all;
   padding: 0 2px 8px;
+}
+
+.brand-wrap {
+  max-width: 620px;
+}
+
+.brand-wrap .card {
+  margin-bottom: 12px;
+}
+
+.logo-row {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.logo-preview {
+  width: 82px;
+  height: 82px;
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--paper-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logo-side {
+  flex: 1;
+  min-width: 0;
+}
+
+.logo-tip {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.7;
+  margin-bottom: 10px;
+}
+
+.logo-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.brand-actions {
+  display: flex;
+  gap: 9px;
 }
 </style>
