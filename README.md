@@ -1,6 +1,8 @@
-# 天府数产公文辅助系统 (Claw)
+# 公文辅助系统
 
 面向国企日常办公的请示材料自动生成、检索与知识库管理系统。
+
+系统名称与标识可由管理员在「设置 → 系统外观」中自定义。
 
 ## 技术栈
 
@@ -21,8 +23,8 @@
 ### 2. 部署
 
 ```bash
-git clone https://github.com/bboytzi/tianfu-doc-assistant.git
-cd tianfu-doc-assistant
+git clone https://github.com/bboytzi/公文辅助系统.git
+cd 公文辅助系统
 docker-compose up -d
 ```
 
@@ -38,7 +40,7 @@ docker-compose up -d
 ## 项目结构
 
 ```
-Claw/
+公文辅助系统/
 ├── app/
 │   ├── backend/          # FastAPI 后端
 │   │   ├── api/          # API 路由
