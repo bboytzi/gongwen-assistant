@@ -165,7 +165,7 @@
         </div>
         <div class="field">
           <label>副标题</label>
-          <el-input v-model="brandForm.subtitle" placeholder="请示材料自动生成 · 制度检索 · 知识库" maxlength="100" />
+          <el-input v-model="brandForm.subtitle" placeholder="公文起草 · 制度检索 · 知识库" maxlength="100" />
           <div class="hint">仅登录页显示</div>
         </div>
       </div>
