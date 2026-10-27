@@ -13,6 +13,7 @@ from api.auth import get_current_user
 from tasks.tasks import generate_document
 from services.word_renderer import TemplateRenderer, extract_placeholders
 from services.citations import build_citations
+from services.doc_types import get_doc_type, list_doc_types, is_valid
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -22,6 +23,12 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
 # ---------------------------------------------------------------- 集合
+
+@router.get("/doc-types")
+def get_doc_types():
+    """公文文种列表，供前端渲染文种选择器。"""
+    return list_doc_types()
+
 
 @router.get("", response_model=list[DocumentResponse])
 def list_documents(
@@ -42,6 +49,10 @@ def create_document(
     db: Session = Depends(get_db),
 ):
     from services.generation import determine_procurement_method_en
+
+    if not is_valid(req.doc_type):
+        raise HTTPException(status_code=400, detail="不支持的公文文种")
+
     procurement_method = None
     if req.budget_amount is not None:
         procurement_method = determine_procurement_method_en(req.budget_amount)
@@ -95,8 +106,14 @@ def export_document(
 
     # Prepare replacements from document content and config
     key_elements = doc.generation_config.get("key_elements", {}) if doc.generation_config else {}
+    dt = get_doc_type(doc.doc_type)
     replacements = {
         "标题": doc.title,
+        "文种": dt["name"],
+        "主送机关": dt["recipient"],
+        "正文": doc.content or "",
+        "结束语": dt["closing"],
+        # 以下为旧模板的占位符，保留兼容
         "事由段落": key_elements.get("事由", ""),
         "依据段落": key_elements.get("依据", ""),
         "请示事项段落": doc.content or "",
