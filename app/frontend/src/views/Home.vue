@@ -49,10 +49,13 @@
             <span class="doc-title" @click="goDoc(row)">{{ row.title }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="doc_category" label="类型" width="88">
+        <el-table-column prop="doc_type" label="文种" width="76">
+          <template #default="{ row }">{{ docTypeName(row.doc_type) }}</template>
+        </el-table-column>
+        <el-table-column prop="doc_category" label="类别" width="82">
           <template #default="{ row }">{{ categoryText(row.doc_category) }}</template>
         </el-table-column>
-        <el-table-column prop="procurement_method" label="采购方式" width="96">
+        <el-table-column prop="procurement_method" label="采购方式" width="90">
           <template #default="{ row }">{{ methodText(row.procurement_method) }}</template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="88">
@@ -87,6 +90,7 @@ import { useRouter } from 'vue-router'
 import { EditPen, Upload, Search } from '@element-plus/icons-vue'
 import api from '../api'
 import { useUserStore } from '../store/user'
+import { docTypeName } from '../constants/docTypes'
 import dayjs from 'dayjs'
 
 const router = useRouter()
