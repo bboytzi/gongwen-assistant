@@ -3,8 +3,8 @@
 诊断 LLM / Embedding 认证失败。
 
 用法：
-    docker exec -it claw-backend python diagnose_key.py
-    docker exec -it claw-backend python diagnose_key.py --key sk-xxx   # 直接测某个 Key
+    docker exec -it gongwen-backend python diagnose_key.py
+    docker exec -it gongwen-backend python diagnose_key.py --key sk-xxx   # 直接测某个 Key
 
 会打印：
   · 对话与向量各自的端点、Key 指纹（长度/首尾字符/是否含空白）
@@ -199,7 +199,7 @@ def main():
         print("    2. 向量 Key 复制时带了空格或换行（看上面的「前后空白」）")
         print("    3. 该 Key 没有向量模型的调用权限")
         print("\n  排查：用 --key 指定一个确定可用的 Key 再测：")
-        print("    docker exec -it claw-backend python diagnose_key.py --key 'sk-xxx'")
+        print("    docker exec -it gongwen-backend python diagnose_key.py --key 'sk-xxx'")
     elif not chat_ok and not emb_ok:
         print("  两个接口都失败，说明 Key 本身无效或站点不匹配。")
         print("    阿里云：确认 Key 与控制台所在站点一致（北京/新加坡）")
