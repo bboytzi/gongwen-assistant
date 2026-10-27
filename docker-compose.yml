@@ -3,7 +3,7 @@ version: "3.9"
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: claw-postgres
+    container_name: gongwen-postgres
     restart: always
     environment:
       POSTGRES_USER: claw
@@ -28,7 +28,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: claw-redis
+    container_name: gongwen-redis
     restart: always
     ports:
       - "6379:6379"
@@ -40,7 +40,7 @@ services:
     build:
       context: ./app/backend
       dockerfile: Dockerfile
-    container_name: claw-backend
+    container_name: gongwen-backend
     restart: always
     ports:
       - "8000:8000"
@@ -65,7 +65,7 @@ services:
     build:
       context: ./app/backend
       dockerfile: Dockerfile
-    container_name: claw-worker
+    container_name: gongwen-worker
     restart: always
     volumes:
       - ./app/backend:/app
@@ -88,11 +88,11 @@ services:
     build:
       context: ./app/frontend
       dockerfile: Dockerfile
-    container_name: claw-frontend
+    container_name: gongwen-frontend
     restart: always
     ports:
       - "80:80"
     volumes:
-      - ./app/nginx/claw.conf:/etc/nginx/conf.d/default.conf
+      - ./app/nginx/gongwen.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - backend
