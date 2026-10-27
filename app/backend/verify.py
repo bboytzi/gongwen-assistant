@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-天府数产公文辅助系统 — 系统自检
+公文辅助系统 — 系统自检
 
 在容器内执行，凭据不出容器：
     docker exec -it claw-backend python verify.py
@@ -298,7 +298,7 @@ def check_data(db):
 
 def main():
     print("=" * 62)
-    print("  天府数产公文辅助系统 — 系统自检")
+    print("  公文辅助系统 — 系统自检")
     print(f"  {settings.APP_NAME} v{settings.APP_VERSION}")
     print("=" * 62)
 
