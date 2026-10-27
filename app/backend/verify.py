@@ -291,7 +291,7 @@ def check_data(db):
 
     generated = db.query(Document).count()
     done = db.query(Document).filter(Document.status == "done").count()
-    print(f"{INFO} 请示文档 {generated} 篇，已完成 {done} 篇")
+    print(f"{INFO} 公文 {generated} 篇，已完成 {done} 篇")
 
 
 # ---------------------------------------------------------------- 主流程
@@ -337,7 +337,7 @@ def main():
         print(f"{OK} 核心链路可用，有 {len(warns)} 项非阻塞提示：")
         for m in warns:
             print(f"        · {m}")
-        print("\n  可以开始使用。建议先上传管理办法，再新建请示。")
+        print("\n  可以开始使用。建议先上传管理办法，再新建公文。")
     else:
         print(f"{OK} 全部检查通过，系统可正常使用。")
 
