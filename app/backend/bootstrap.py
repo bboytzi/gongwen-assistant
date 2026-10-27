@@ -10,16 +10,16 @@
 用法（在服务器上，项目目录内执行）：
 
   # 默认创建 admin / Admin@2026
-  docker exec -it claw-backend python bootstrap.py
+  docker exec -it gongwen-backend python bootstrap.py
 
   # 自定义账号密码
-  docker exec -it claw-backend python bootstrap.py --username taoye --password 'MyPass@2026'
+  docker exec -it gongwen-backend python bootstrap.py --username taoye --password 'MyPass@2026'
 
   # 只修复数据库结构，不动账号
-  docker exec -it claw-backend python bootstrap.py --fix-schema-only
+  docker exec -it gongwen-backend python bootstrap.py --fix-schema-only
 
   # 查看当前已有账号
-  docker exec -it claw-backend python bootstrap.py --list-users
+  docker exec -it gongwen-backend python bootstrap.py --list-users
 
 脚本是幂等的，重复执行不会出错。
 """
@@ -191,7 +191,7 @@ def create_admin(db, username, password, department=None, reset_password=False):
     except Exception as e:
         print(f"  [FAIL] 密码哈希失败: {e}")
         print("         常见原因：bcrypt 库缺失或与 passlib 版本冲突")
-        print("         修复：docker exec -it claw-backend pip install 'bcrypt==4.2.0'")
+        print("         修复：docker exec -it gongwen-backend pip install 'bcrypt==4.2.0'")
         return None
 
     existing = db.query(User).filter(User.username == username).first()
