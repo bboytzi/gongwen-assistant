@@ -66,6 +66,18 @@ class KnowledgeBase(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class SystemSetting(Base):
+    """系统级键值配置，如系统名称与 logo。
+
+    用键值表而不是单行表，后续加配置项不用改表结构。
+    """
+    __tablename__ = "system_settings"
+
+    key = Column(String(50), primary_key=True)
+    value = Column(Text)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class KBDocument(Base):
     __tablename__ = "kb_documents"
 
