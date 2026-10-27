@@ -1157,7 +1157,7 @@ LLM API Key 存储与使用：
 ### 7.1 目录结构
 
 ```
-/opt/claw/                          # 应用根目录
+/opt/gongwen/                        # 应用根目录
 ├── docker-compose.yml
 ├── .env                            # 环境变量（密钥等）
 ├── app/
@@ -1183,7 +1183,7 @@ LLM API Key 存储与使用：
 │   │   ├── package.json
 │   │   └── vite.config.ts
 │   └── nginx/
-│       └── claw.conf               # Nginx 配置
+│       └── gongwen.conf               # Nginx 配置
 ├── data/                           # 持久化数据
 │   ├── pgdata/                     # PostgreSQL 数据
 │   ├── redis/                      # Redis 持久化
@@ -1204,7 +1204,7 @@ version: "3.9"
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: claw-pg
+    container_name: gongwen-pg
     restart: always
     environment:
       POSTGRES_DB: claw
@@ -1214,7 +1214,7 @@ services:
       - ./data/pgdata:/var/lib/postgresql/data
     # 不映射端口到宿主机，仅容器间访问
     networks:
-      - claw-net
+      - gongwen-net
     deploy:
       resources:
         limits:
@@ -1223,13 +1223,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: claw-redis
+    container_name: gongwen-redis
     restart: always
     command: redis-server --maxmemory 200mb --maxmemory-policy allkeys-lru
     volumes:
       - ./data/redis:/data
     networks:
-      - claw-net
+      - gongwen-net
     deploy:
       resources:
         limits:
@@ -1238,7 +1238,7 @@ services:
 
   backend:
     build: ./app/backend
-    container_name: claw-api
+    container_name: gongwen-api
     restart: always
     command: >
       uvicorn main:app
@@ -1260,7 +1260,7 @@ services:
       - postgres
       - redis
     networks:
-      - claw-net
+      - gongwen-net
     deploy:
       resources:
         limits:
@@ -1269,7 +1269,7 @@ services:
 
   celery-worker:
     build: ./app/backend
-    container_name: claw-worker
+    container_name: gongwen-worker
     restart: always
     command: celery -A tasks.celery_app worker --loglevel=info --concurrency=2 --max-memory-per-child=1000000
     environment:
@@ -1285,7 +1285,7 @@ services:
       - postgres
       - redis
     networks:
-      - claw-net
+      - gongwen-net
     deploy:
       resources:
         limits:
@@ -1294,19 +1294,19 @@ services:
 
   nginx:
     image: nginx:1.24-alpine
-    container_name: claw-nginx
+    container_name: gongwen-nginx
     restart: always
     ports:
       - "80:80"
       # 后续用户自行配置 HTTPS 时开放 443
     volumes:
-      - ./app/nginx/claw.conf:/etc/nginx/conf.d/default.conf
+      - ./app/nginx/gongwen.conf:/etc/nginx/conf.d/default.conf
       - ./app/frontend/dist:/usr/share/nginx/html      # 前端构建产物
       - ./data/uploads:/usr/share/nginx/uploads:ro     # 静态文件（受限访问）
     depends_on:
       - backend
     networks:
-      - claw-net
+      - gongwen-net
     deploy:
       resources:
         limits:
@@ -1314,7 +1314,7 @@ services:
           memory: 100M
 
 networks:
-  claw-net:
+  gongwen-net:
     driver: bridge
 ```
 
