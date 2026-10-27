@@ -3,8 +3,8 @@
     <div class="login-card">
       <div class="brand">
         <Logo :size="52" />
-        <div class="brand-name">天府数产公文辅助系统</div>
-        <div class="brand-sub">请示材料自动生成 · 制度检索 · 知识库</div>
+        <div class="brand-name">{{ system.name }}</div>
+        <div class="brand-sub">{{ system.subtitle }}</div>
       </div>
 
       <div class="tabs">
@@ -61,9 +61,6 @@
           注 册
         </el-button>
       </div>
-
-      <div class="foot-line"></div>
-      <div class="foot-text">成都天府新区数字产业有限公司</div>
     </div>
   </div>
 </template>
@@ -73,10 +70,12 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../store/user'
+import { useSystemStore } from '../store/system'
 import Logo from '../components/Logo.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const system = useSystemStore()
 
 const activeTab = ref('login')
 const loading = ref(false)
@@ -226,18 +225,5 @@ async function handleRegister() {
   height: 36px;
   margin-top: 8px;
   letter-spacing: 4px;
-}
-
-.foot-line {
-  height: 1px;
-  background: var(--line-2);
-  margin: 22px 0 12px;
-}
-
-.foot-text {
-  text-align: center;
-  font-size: 10px;
-  color: var(--ink-4);
-  letter-spacing: 0.5px;
 }
 </style>
