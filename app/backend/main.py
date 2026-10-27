@@ -16,7 +16,7 @@ from api.websocket import router as ws_router
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="国企请示材料自动生成、检索与知识库管理系统",
+    description="国企公文起草、检索与知识库管理系统",
 )
 
 app.add_middleware(
